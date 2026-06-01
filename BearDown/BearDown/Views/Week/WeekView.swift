@@ -14,13 +14,25 @@ public struct WeekView: View {
         NavigationStack {
             VStack(spacing: 12) {
                 header
-                ScrollView {
-                    LazyVStack(spacing: 10) {
-                        ForEach(vm.days, id: \.self) { day in
-                            dayCard(day)
-                        }
+                if vm.workoutsByDate.isEmpty {
+                    ContentUnavailableView {
+                        Label("No workouts this week", systemImage: "calendar.badge.exclamationmark")
+                    } description: {
+                        Text("Ask the Coach to build a plan.")
+                    } actions: {
+                        Button("Open Coach") { nav.selectedTab = 2 }
+                            .buttonStyle(.borderedProminent)
                     }
-                    .padding(.horizontal)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 10) {
+                            ForEach(vm.days, id: \.self) { day in
+                                dayCard(day)
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
                 }
             }
             .navigationTitle("Week")

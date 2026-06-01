@@ -13,9 +13,15 @@ public struct PlanView: View {
         NavigationStack {
             Group {
                 if vm.weeks.isEmpty {
-                    ContentUnavailableView("No plan yet",
-                                           systemImage: "list.bullet.rectangle",
-                                           description: Text("Ask the Coach to build one."))
+                    if (try? env.plans.activePlan()) == nil {
+                        ContentUnavailableView("No plan yet",
+                                               systemImage: "list.bullet.rectangle",
+                                               description: Text("Ask the Coach to build one."))
+                    } else {
+                        ContentUnavailableView("Loading your plan…",
+                                               systemImage: "icloud.and.arrow.down",
+                                               description: Text("Syncing from iCloud."))
+                    }
                 } else {
                     List {
                         ForEach(vm.weeks) { section in
