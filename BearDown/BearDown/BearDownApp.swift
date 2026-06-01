@@ -4,6 +4,7 @@ import SwiftData
 @main
 struct BearDownApp: App {
     @StateObject private var env: AppEnvironment
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         let environment: AppEnvironment
@@ -28,6 +29,19 @@ struct BearDownApp: App {
             RootView()
                 .environmentObject(env)
                 .modelContainer(env.modelContainer)
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active { Task { await reconcileNotifications() } }
+                }
         }
+    }
+
+    @MainActor
+    private func reconcileNotifications() async {
+        let on = UserDefaults.standard.bool(forKey: "notifications.enabled")
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: .now)
+        let end = cal.date(byAdding: .day, value: 365, to: today)!
+        guard let ws = try? env.workouts.workoutsBetween(start: today, end: end) else { return }
+        try? await env.notificationScheduler.reconcile(workouts: ws, enabled: on)
     }
 }
