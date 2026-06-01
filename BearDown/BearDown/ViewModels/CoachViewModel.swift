@@ -24,7 +24,7 @@ public final class CoachViewModel: ObservableObject {
         self.env.coach.onTextDelta = { [weak self] delta in
             Task { @MainActor in self?.liveAssistantText += delta }
         }
-        refresh()
+        // Initial data load happens via the owning view's .onAppear.
     }
 
     public func refresh() {

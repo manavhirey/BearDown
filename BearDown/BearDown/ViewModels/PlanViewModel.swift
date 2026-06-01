@@ -16,7 +16,7 @@ public final class PlanViewModel: ObservableObject {
     private let env: AppEnvironment
     public init(env: AppEnvironment) {
         self.env = env
-        refresh()
+        // Initial data load happens via the owning view's .onAppear.
     }
 
     public func refresh() {

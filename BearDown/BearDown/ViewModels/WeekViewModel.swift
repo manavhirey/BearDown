@@ -12,7 +12,7 @@ public final class WeekViewModel: ObservableObject {
     public init(env: AppEnvironment, anchor: Date = .now) {
         self.env = env
         self.weekStart = Self.weekStart(for: anchor)
-        refresh()
+        // Initial data load happens via the owning view's .onAppear.
     }
 
     public var days: [Date] {
