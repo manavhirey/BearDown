@@ -3,7 +3,6 @@ import Foundation
 
 @MainActor
 public final class PlanViewModel: ObservableObject {
-    public nonisolated let objectWillChange = PassthroughSubject<Void, Never>()
 
     public struct WeekSection: Identifiable {
         public let id: Date          // weekStart

@@ -10,7 +10,6 @@ public final class CoachViewModel: ObservableObject {
         case error(String)
     }
 
-    public nonisolated let objectWillChange = PassthroughSubject<Void, Never>()
 
     @Published public var messages: [ChatMessage] = []
     @Published public var draft: String = ""

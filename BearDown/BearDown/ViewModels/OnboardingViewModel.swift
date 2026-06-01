@@ -10,7 +10,6 @@ public final class OnboardingViewModel: ObservableObject {
         case error(String)
     }
 
-    public nonisolated let objectWillChange = PassthroughSubject<Void, Never>()
 
     @Published public var apiKey: String = ""
     @Published public var state: State = .idle

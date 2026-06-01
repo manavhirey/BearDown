@@ -3,7 +3,6 @@ import Foundation
 
 @MainActor
 public final class WorkoutDetailViewModel: ObservableObject {
-    public nonisolated let objectWillChange = PassthroughSubject<Void, Never>()
 
     @Published public var draftNote: String = ""
 

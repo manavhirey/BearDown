@@ -5,7 +5,6 @@ import UserNotifications
 
 @MainActor
 public final class AppEnvironment: ObservableObject {
-    public nonisolated let objectWillChange = PassthroughSubject<Void, Never>()
 
     public let modelContainer: ModelContainer
     public let keychain: KeychainStore

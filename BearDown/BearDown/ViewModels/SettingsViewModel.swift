@@ -4,7 +4,6 @@ import UserNotifications
 
 @MainActor
 public final class SettingsViewModel: ObservableObject {
-    public nonisolated let objectWillChange = PassthroughSubject<Void, Never>()
 
     @Published public var notificationsEnabled: Bool {
         didSet {

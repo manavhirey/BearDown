@@ -3,7 +3,6 @@ import Foundation
 
 @MainActor
 public final class WeekViewModel: ObservableObject {
-    public nonisolated let objectWillChange = PassthroughSubject<Void, Never>()
 
     @Published public private(set) var weekStart: Date
     @Published public private(set) var workoutsByDate: [Date: Workout] = [:]
