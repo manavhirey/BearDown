@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct CoachView: View {
     @StateObject private var vm: CoachViewModel
+    @EnvironmentObject private var nav: AppNavigation
 
     public init(env: AppEnvironment) {
         _vm = StateObject(wrappedValue: CoachViewModel(env: env))
@@ -16,7 +17,13 @@ public struct CoachView: View {
                             ForEach(vm.messages) { m in
                                 ChatBubble(role: m.role,
                                            text: m.text,
-                                           toolChips: chips(for: m))
+                                           toolChips: chips(for: m),
+                                           onChipTap: { chip in
+                                               if let d = chip.workoutDate {
+                                                   nav.weekFocusedDate = d
+                                                   nav.selectedTab = 0
+                                               }
+                                           })
                                     .id(m.id)
                             }
                             if vm.state == .streaming && !vm.liveAssistantText.isEmpty {
