@@ -31,7 +31,7 @@ final class PlanRepositoryTests: XCTestCase {
         XCTAssertEqual(try repo.activePlan()?.id, second.id)
         let ctx = container.mainContext
         let refreshed = try ctx.fetch(FetchDescriptor<TrainingPlan>())
-        let archived = refreshed.first { $0.id == first.id }!
+        let archived = try XCTUnwrap(refreshed.first { $0.id == first.id })
         XCTAssertFalse(archived.isActive)
         XCTAssertNotNil(archived.archivedAt)
     }

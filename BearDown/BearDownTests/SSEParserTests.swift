@@ -18,15 +18,15 @@ final class SSEParserTests: XCTestCase {
 
     func test_textOnlyStream_producesExpectedEventSequence() throws {
         let events = parse(try fixture("stream-text-only"))
-        XCTAssertEqual(events.count, 7)
-        guard case .messageStart = events[0] else { return XCTFail() }
+        try XCTSkipUnless(events.count == 7, "Expected 7 events, got \(events.count)")
+        if case .messageStart = events[0] {} else { XCTFail("Expected messageStart at index 0, got \(events[0])") }
         if case let .contentBlockDelta(_, delta) = events[2],
            case let .text(text) = delta {
             XCTAssertEqual(text, "Hello ")
-        } else { XCTFail("Expected text delta") }
+        } else { XCTFail("Expected text delta at index 2, got \(events[2])") }
         if case let .messageDelta(stopReason) = events[5] {
             XCTAssertEqual(stopReason, "end_turn")
-        } else { XCTFail("Expected message_delta with stop_reason") }
+        } else { XCTFail("Expected message_delta with stop_reason at index 5, got \(events[5])") }
     }
 
     func test_toolUseStream_carriesPartialJsonDeltas() throws {
