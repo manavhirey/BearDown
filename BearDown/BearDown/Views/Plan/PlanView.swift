@@ -13,14 +13,14 @@ public struct PlanView: View {
         NavigationStack {
             Group {
                 if vm.weeks.isEmpty {
-                    if (try? env.plans.activePlan()) == nil {
-                        ContentUnavailableView("No plan yet",
-                                               systemImage: "list.bullet.rectangle",
-                                               description: Text("Ask the Coach to build one."))
-                    } else {
+                    if vm.hasPlan {
                         ContentUnavailableView("Loading your plan…",
                                                systemImage: "icloud.and.arrow.down",
                                                description: Text("Syncing from iCloud."))
+                    } else {
+                        ContentUnavailableView("No plan yet",
+                                               systemImage: "list.bullet.rectangle",
+                                               description: Text("Ask the Coach to build one."))
                     }
                 } else {
                     List {
@@ -54,7 +54,8 @@ public struct PlanView: View {
 
     private func row(_ w: Workout) -> some View {
         HStack {
-            Text(dayLabel(w.date)).frame(width: 64, alignment: .leading).foregroundStyle(.secondary)
+            Text(w.date, format: .dateTime.weekday(.abbreviated).day())
+                .frame(width: 64, alignment: .leading).foregroundStyle(.secondary)
             VStack(alignment: .leading) {
                 Text(w.title).bold()
                 HStack(spacing: 6) {
@@ -70,9 +71,6 @@ public struct PlanView: View {
         }
     }
 
-    private func dayLabel(_ d: Date) -> String {
-        let f = DateFormatter(); f.dateFormat = "EEE d"; return f.string(from: d)
-    }
     private func badges(_ w: Workout) -> [String] {
         var b: [String] = []
         let kinds = Set(w.blocks.map(\.kind))
