@@ -6,7 +6,26 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		0430DF072FCD158800B30978 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 04AFC4702FCD119A00E330AA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 04AFC4772FCD119A00E330AA;
+			remoteInfo = BearDown;
+		};
+		0430DF162FCD15A500B30978 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 04AFC4702FCD119A00E330AA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 04AFC4772FCD119A00E330AA;
+			remoteInfo = BearDown;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		0430DF032FCD158800B30978 /* BearDownTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BearDownTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0430DF102FCD15A500B30978 /* BearDownUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BearDownUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		04AFC4782FCD119A00E330AA /* BearDown.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BearDown.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -21,6 +40,16 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		0430DF042FCD158800B30978 /* BearDownTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = BearDownTests;
+			sourceTree = "<group>";
+		};
+		0430DF112FCD15A500B30978 /* BearDownUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = BearDownUITests;
+			sourceTree = "<group>";
+		};
 		04AFC47A2FCD119A00E330AA /* BearDown */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -32,6 +61,20 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		0430DF002FCD158800B30978 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0430DF0D2FCD15A500B30978 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		04AFC4752FCD119A00E330AA /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -46,6 +89,8 @@
 			isa = PBXGroup;
 			children = (
 				04AFC47A2FCD119A00E330AA /* BearDown */,
+				0430DF042FCD158800B30978 /* BearDownTests */,
+				0430DF112FCD15A500B30978 /* BearDownUITests */,
 				04AFC4792FCD119A00E330AA /* Products */,
 			);
 			sourceTree = "<group>";
@@ -54,6 +99,8 @@
 			isa = PBXGroup;
 			children = (
 				04AFC4782FCD119A00E330AA /* BearDown.app */,
+				0430DF032FCD158800B30978 /* BearDownTests.xctest */,
+				0430DF102FCD15A500B30978 /* BearDownUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -61,6 +108,52 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		0430DF022FCD158800B30978 /* BearDownTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0430DF0B2FCD158800B30978 /* Build configuration list for PBXNativeTarget "BearDownTests" */;
+			buildPhases = (
+				0430DEFF2FCD158800B30978 /* Sources */,
+				0430DF002FCD158800B30978 /* Frameworks */,
+				0430DF012FCD158800B30978 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0430DF082FCD158800B30978 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				0430DF042FCD158800B30978 /* BearDownTests */,
+			);
+			name = BearDownTests;
+			packageProductDependencies = (
+			);
+			productName = BearDownTests;
+			productReference = 0430DF032FCD158800B30978 /* BearDownTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		0430DF0F2FCD15A500B30978 /* BearDownUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0430DF182FCD15A500B30978 /* Build configuration list for PBXNativeTarget "BearDownUITests" */;
+			buildPhases = (
+				0430DF0C2FCD15A500B30978 /* Sources */,
+				0430DF0D2FCD15A500B30978 /* Frameworks */,
+				0430DF0E2FCD15A500B30978 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				0430DF172FCD15A500B30978 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				0430DF112FCD15A500B30978 /* BearDownUITests */,
+			);
+			name = BearDownUITests;
+			packageProductDependencies = (
+			);
+			productName = BearDownUITests;
+			productReference = 0430DF102FCD15A500B30978 /* BearDownUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		04AFC4772FCD119A00E330AA /* BearDown */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 04AFC4832FCD119C00E330AA /* Build configuration list for PBXNativeTarget "BearDown" */;
@@ -93,6 +186,14 @@
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
+					0430DF022FCD158800B30978 = {
+						CreatedOnToolsVersion = 26.4.1;
+						TestTargetID = 04AFC4772FCD119A00E330AA;
+					};
+					0430DF0F2FCD15A500B30978 = {
+						CreatedOnToolsVersion = 26.4.1;
+						TestTargetID = 04AFC4772FCD119A00E330AA;
+					};
 					04AFC4772FCD119A00E330AA = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
@@ -113,11 +214,27 @@
 			projectRoot = "";
 			targets = (
 				04AFC4772FCD119A00E330AA /* BearDown */,
+				0430DF022FCD158800B30978 /* BearDownTests */,
+				0430DF0F2FCD15A500B30978 /* BearDownUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		0430DF012FCD158800B30978 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0430DF0E2FCD15A500B30978 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		04AFC4762FCD119A00E330AA /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -128,6 +245,20 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		0430DEFF2FCD158800B30978 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0430DF0C2FCD15A500B30978 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		04AFC4742FCD119A00E330AA /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -137,7 +268,98 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		0430DF082FCD158800B30978 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 04AFC4772FCD119A00E330AA /* BearDown */;
+			targetProxy = 0430DF072FCD158800B30978 /* PBXContainerItemProxy */;
+		};
+		0430DF172FCD15A500B30978 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 04AFC4772FCD119A00E330AA /* BearDown */;
+			targetProxy = 0430DF162FCD15A500B30978 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		0430DF092FCD158800B30978 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Hirey.BearDownTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BearDown.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BearDown";
+			};
+			name = Debug;
+		};
+		0430DF0A2FCD158800B30978 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Hirey.BearDownTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BearDown.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BearDown";
+			};
+			name = Release;
+		};
+		0430DF192FCD15A500B30978 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Hirey.BearDownUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = BearDown;
+			};
+			name = Debug;
+		};
+		0430DF1A2FCD15A500B30978 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = Hirey.BearDownUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = BearDown;
+			};
+			name = Release;
+		};
 		04AFC4812FCD119C00E330AA /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -330,6 +552,24 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		0430DF0B2FCD158800B30978 /* Build configuration list for PBXNativeTarget "BearDownTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0430DF092FCD158800B30978 /* Debug */,
+				0430DF0A2FCD158800B30978 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0430DF182FCD15A500B30978 /* Build configuration list for PBXNativeTarget "BearDownUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0430DF192FCD15A500B30978 /* Debug */,
+				0430DF1A2FCD15A500B30978 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		04AFC4732FCD119A00E330AA /* Build configuration list for PBXProject "BearDown" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
