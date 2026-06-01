@@ -10,11 +10,12 @@ struct BearDownApp: App {
         do {
             environment = try AppEnvironment.production()
         } catch {
-            // Fall back to an in-memory store when CloudKit entitlement is
-            // unavailable (e.g. simulator test host). This keeps unit tests
-            // running without a fatalError in the app host process.
+            // CloudKit unavailable (simulator without iCloud, user signed out,
+            // entitlement missing). Fall back to on-disk-without-sync so user
+            // data still persists across launches — never to in-memory, which
+            // would silently throw away the user's training plans.
             do {
-                environment = try AppEnvironment(modelContainer: .beardownInMemory())
+                environment = try AppEnvironment(modelContainer: .beardownLocalOnly())
             } catch {
                 fatalError("Failed to initialize AppEnvironment: \(error)")
             }

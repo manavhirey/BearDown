@@ -22,6 +22,18 @@ public extension ModelContainer {
         return try ModelContainer(for: beardownSchema, configurations: [config])
     }
 
+    /// On-disk persistent store without CloudKit sync. Used as a fallback
+    /// when CloudKit is unavailable (e.g. simulator without iCloud, user
+    /// signed out of iCloud). Preserves user data across launches — do NOT
+    /// substitute with `beardownInMemory()` for this purpose.
+    static func beardownLocalOnly() throws -> ModelContainer {
+        let config = ModelConfiguration(
+            schema: beardownSchema,
+            cloudKitDatabase: .none
+        )
+        return try ModelContainer(for: beardownSchema, configurations: [config])
+    }
+
     /// In-memory container for tests and previews.
     /// Disables CloudKit explicitly — when the app has the CloudKit entitlement,
     /// SwiftData runs CloudKit schema validation even on in-memory stores unless
