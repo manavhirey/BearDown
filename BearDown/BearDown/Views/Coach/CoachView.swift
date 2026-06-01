@@ -17,7 +17,7 @@ public struct CoachView: View {
                             ForEach(vm.messages) { m in
                                 ChatBubble(role: m.role,
                                            text: m.text,
-                                           toolChips: chips(for: m),
+                                           toolChips: vm.chips(for: m),
                                            onChipTap: { chip in
                                                if let d = chip.workoutDate {
                                                    nav.weekFocusedDate = d
@@ -82,34 +82,4 @@ public struct CoachView: View {
         }
     }
 
-    private func chips(for m: ChatMessage) -> [ChatBubble.ToolChip] {
-        guard let raw = m.toolCallsJSON,
-              let arr = try? JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [[String: Any]]
-        else { return [] }
-        return arr.compactMap { dict in
-            let id = (dict["id"] as? String) ?? UUID().uuidString
-            let name = (dict["name"] as? String) ?? "?"
-            let input = (dict["input"] as? [String: Any]) ?? [:]
-            switch name {
-            case "upsert_workout":
-                let date = input["date"] as? String ?? "?"
-                let title = input["title"] as? String ?? "Workout"
-                return .init(id: id, label: "Scheduled \(title) — \(date)", isError: false,
-                             workoutDate: parseIso(date))
-            case "delete_workout":
-                let date = input["date"] as? String ?? "?"
-                return .init(id: id, label: "Deleted workout on \(date)", isError: false,
-                             workoutDate: parseIso(date))
-            case "get_recent_history":
-                return .init(id: id, label: "Reviewed recent history", isError: false, workoutDate: nil)
-            default:
-                return .init(id: id, label: "Called \(name)", isError: false, workoutDate: nil)
-            }
-        }
-    }
-
-    private func parseIso(_ s: String) -> Date? {
-        let f = ISO8601DateFormatter(); f.formatOptions = [.withFullDate]
-        return f.date(from: s)
-    }
 }

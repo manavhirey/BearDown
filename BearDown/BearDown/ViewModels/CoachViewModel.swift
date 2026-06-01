@@ -17,6 +17,7 @@ public final class CoachViewModel: ObservableObject {
     @Published public var liveAssistantText: String = ""
     @Published public private(set) var lastUserText: String?
 
+    private var chipCache: [UUID: [ChatBubble.ToolChip]] = [:]
     private let env: AppEnvironment
 
     public init(env: AppEnvironment) {
@@ -29,7 +30,49 @@ public final class CoachViewModel: ObservableObject {
 
     public func refresh() {
         let id = env.chats.currentConversationId()
-        messages = (try? env.chats.messages(in: id)) ?? []
+        let msgs = (try? env.chats.messages(in: id)) ?? []
+        messages = msgs
+        chipCache = Dictionary(uniqueKeysWithValues:
+            msgs.map { ($0.id, Self.computeChips(from: $0)) })
+    }
+
+    /// Pre-computed tool-call chips for an assistant message. O(1) lookup.
+    public func chips(for message: ChatMessage) -> [ChatBubble.ToolChip] {
+        chipCache[message.id] ?? []
+    }
+
+    private static func computeChips(from m: ChatMessage) -> [ChatBubble.ToolChip] {
+        guard let raw = m.toolCallsJSON,
+              let arr = try? JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [[String: Any]]
+        else { return [] }
+        return arr.compactMap { dict in
+            let id = (dict["id"] as? String) ?? UUID().uuidString
+            let name = (dict["name"] as? String) ?? "?"
+            let input = (dict["input"] as? [String: Any]) ?? [:]
+            switch name {
+            case "upsert_workout":
+                let date = input["date"] as? String ?? "?"
+                let title = input["title"] as? String ?? "Workout"
+                return .init(id: id, label: "Scheduled \(title) — \(date)",
+                             isError: false, workoutDate: parseIso(date))
+            case "delete_workout":
+                let date = input["date"] as? String ?? "?"
+                return .init(id: id, label: "Deleted workout on \(date)",
+                             isError: false, workoutDate: parseIso(date))
+            case "get_recent_history":
+                return .init(id: id, label: "Reviewed recent history",
+                             isError: false, workoutDate: nil)
+            default:
+                return .init(id: id, label: "Called \(name)",
+                             isError: false, workoutDate: nil)
+            }
+        }
+    }
+
+    private static func parseIso(_ s: String) -> Date? {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withFullDate]
+        return f.date(from: s)
     }
 
     public func newChat() {
