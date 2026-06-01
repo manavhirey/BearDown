@@ -7,6 +7,10 @@ struct BearDownApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        if ProcessInfo.processInfo.arguments.contains("--reset-keychain") {
+            try? KeychainStore().delete(key: .anthropicAPIKey)
+        }
+
         let environment: AppEnvironment
         do {
             environment = try AppEnvironment.production()
@@ -22,6 +26,18 @@ struct BearDownApp: App {
             }
         }
         _env = StateObject(wrappedValue: environment)
+
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-seed-week") {
+            Task { @MainActor in
+                if (try? environment.plans.activePlan()) == nil {
+                    _ = try? environment.plans.createPlan(title: "UI",
+                                                          startDate: .now,
+                                                          endDate: .now.addingTimeInterval(7 * 86400))
+                }
+                _ = try? environment.workouts.upsert(.init(date: .now, title: "Push UI",
+                                                           summary: "Bench + OHP", blocks: []))
+            }
+        }
     }
 
     var body: some Scene {

@@ -26,12 +26,10 @@ public struct RootView: View {
                 }
                 .environmentObject(nav)
             } else {
-                let vm = OnboardingViewModel(
-                    keychain: env.keychain,
-                    validate: { [client = env.anthropic] key in
-                        try await client.validate(apiKey: key)
-                    }
-                )
+                let validator: (String) async throws -> Void = ProcessInfo.processInfo.arguments.contains("--ui-test-stub-validator")
+                    ? { _ in }
+                    : { [client = env.anthropic] key in try await client.validate(apiKey: key) }
+                let vm = OnboardingViewModel(keychain: env.keychain, validate: validator)
                 OnboardingView(viewModel: vm) { hasKey = true }
             }
         }
