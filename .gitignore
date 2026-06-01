@@ -22,3 +22,13 @@ Package.resolved
 # Secrets (just in case)
 *.env
 secrets.json
+
+# Xcode user data
+*.xcuserdatad/
+*.xcuserstate
+
+# Test result bundles
+*.xcresult
+
+# .gitkeep files (placeholder only)
+.gitkeep

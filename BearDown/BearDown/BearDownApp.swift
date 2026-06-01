@@ -11,7 +11,7 @@ import SwiftUI
 struct BearDownApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            Text("BearDown")
         }
     }
 }
