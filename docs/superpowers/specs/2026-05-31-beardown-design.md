@@ -19,7 +19,7 @@ BearDown is a native iOS app that turns a personal coaching agent (Anthropic Cla
 
 **Non-goals (v1):**
 - Multi-user / accounts / social features.
-- Per-exercise actuals logging (weight × reps performed). Status only.
+- Per-exercise actuals logging (weight × reps performed). Status only. (Planned future direction: ingest actuals from an external source — a fitness app or a watched directory of flat files — rather than asking the user to enter them by hand.)
 - HealthKit integration.
 - Apple Watch app.
 - In-app purchases, paywalls.
