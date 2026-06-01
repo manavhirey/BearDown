@@ -81,14 +81,27 @@ public enum RepositoryError: Error, Equatable {
     case workoutNotFound
 }
 
+public typealias ScheduleHook = @Sendable (Workout, _ enabled: Bool) -> Void
+public typealias CancelHook = @Sendable (UUID) -> Void
+
 @MainActor
 public final class WorkoutRepository {
     private let context: ModelContext
     private let plans: PlanRepository
+    private let onChange: ScheduleHook?
+    private let onCancel: CancelHook?
+    private let notificationsEnabled: @Sendable () -> Bool
 
-    public init(context: ModelContext, plans: PlanRepository) {
+    public init(context: ModelContext,
+                plans: PlanRepository,
+                onChange: ScheduleHook? = nil,
+                onCancel: CancelHook? = nil,
+                notificationsEnabled: @escaping @Sendable () -> Bool = { false }) {
         self.context = context
         self.plans = plans
+        self.onChange = onChange
+        self.onCancel = onCancel
+        self.notificationsEnabled = notificationsEnabled
     }
 
     @discardableResult
@@ -129,6 +142,7 @@ public final class WorkoutRepository {
             }
         }
         try context.save()
+        onChange?(w, notificationsEnabled())
         return w
     }
 
@@ -138,8 +152,10 @@ public final class WorkoutRepository {
         let toDelete = try context.fetch(FetchDescriptor<Workout>(
             predicate: #Predicate { $0.date >= day && $0.date < next }
         ))
+        let cancelledIds = toDelete.map(\.id)
         for w in toDelete { context.delete(w) }
         try context.save()
+        if let onCancel { for id in cancelledIds { onCancel(id) } }
     }
 
     public func workoutsBetween(start: Date, end: Date) throws -> [Workout] {
@@ -159,6 +175,7 @@ public final class WorkoutRepository {
         w.completedAt = (status == .pending) ? nil : .now
         w.updatedAt = .now
         try context.save()
+        onChange?(w, notificationsEnabled())
     }
 
     public func recentHistory(days: Int) throws -> [HistoryEntry] {

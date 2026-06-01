@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import SwiftData
+import UserNotifications
 
 @MainActor
 public final class AppEnvironment: ObservableObject {
@@ -10,6 +11,7 @@ public final class AppEnvironment: ObservableObject {
     public let keychain: KeychainStore
     public let anthropic: AnthropicClientProtocol
     public let plans: PlanRepository
+    public let notificationScheduler: NotificationScheduler
     public let workouts: WorkoutRepository
     public let chats: ChatRepository
     public let coach: CoachService
@@ -22,7 +24,26 @@ public final class AppEnvironment: ObservableObject {
         self.anthropic = anthropic
         let ctx = modelContainer.mainContext
         self.plans = PlanRepository(context: ctx)
-        self.workouts = WorkoutRepository(context: ctx, plans: plans)
+
+        let center = SystemUserNotificationCenter()
+        let scheduler = NotificationScheduler(center: center)
+        self.notificationScheduler = scheduler
+
+        let prefsEnabled: @Sendable () -> Bool = {
+            UserDefaults.standard.bool(forKey: "notifications.enabled")
+        }
+
+        self.workouts = WorkoutRepository(
+            context: ctx,
+            plans: plans,
+            onChange: { workout, enabled in
+                Task { try? await scheduler.scheduleOrUpdate(workout: workout, enabled: enabled) }
+            },
+            onCancel: { id in
+                Task { await scheduler.cancelByIdentifier("workout-\(id.uuidString)") }
+            },
+            notificationsEnabled: prefsEnabled
+        )
         self.chats = ChatRepository(context: ctx)
         let toolsImpl = CoachTools(plans: plans, workouts: workouts)
         self.coach = CoachService(client: anthropic,
