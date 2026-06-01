@@ -8,8 +8,8 @@ public struct SettingsView: View {
     @State private var newKey: String = ""
     @State private var showReplace: Bool = false
 
-    public init(vm: SettingsViewModel) {
-        _vm = StateObject(wrappedValue: vm)
+    public init(env: AppEnvironment) {
+        _vm = StateObject(wrappedValue: SettingsViewModel(env: env))
     }
 
     public var body: some View {
