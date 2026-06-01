@@ -14,7 +14,7 @@ public struct RootView: View {
                     WeekView(env: env)
                         .tabItem { Label("Week", systemImage: "calendar") }
                         .tag(0)
-                    PlanView()
+                    PlanView(env: env)
                         .tabItem { Label("Plan", systemImage: "list.bullet.rectangle") }
                         .tag(1)
                     CoachView(env: env)
