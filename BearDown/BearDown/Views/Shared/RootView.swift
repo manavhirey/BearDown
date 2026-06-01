@@ -14,7 +14,7 @@ public struct RootView: View {
                         .tabItem { Label("Week", systemImage: "calendar") }
                     PlanView()
                         .tabItem { Label("Plan", systemImage: "list.bullet.rectangle") }
-                    CoachView()
+                    CoachView(env: env)
                         .tabItem { Label("Coach", systemImage: "bubble.left.and.bubble.right") }
                     SettingsView()
                         .tabItem { Label("Settings", systemImage: "gear") }
