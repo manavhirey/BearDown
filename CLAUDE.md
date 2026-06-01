@@ -1,0 +1,187 @@
+# CLAUDE.md — BearDown
+
+Notes for future Claude sessions on this iOS app. Skim before making changes.
+
+## What this is
+
+Native iOS 17+ SwiftUI app. A hardcoded coaching agent (Anthropic Claude Sonnet 4.6, with the user's verbatim "Hybrid Athlete Coach" prompt) generates 4-week training blocks via tool calls. The app persists workouts to SwiftData with CloudKit sync, renders them as a week calendar and full plan view, and lets the user mark each workout completed or failed. Per-workout local notifications.
+
+Full design rationale: `docs/superpowers/specs/2026-05-31-beardown-design.md`. Original implementation plan: `docs/superpowers/plans/2026-05-31-beardown.md`. Manual test checklist: `docs/manual-tests.md`.
+
+## Project layout (important — non-obvious)
+
+Xcode created a nested wrapper folder. The git repo root and the Xcode project root are NOT the same.
+
+```
+/Users/MAC/Documents/Code/BearDown/          ← git repo root, CWD
+├── docs/
+├── BearDown/                                 ← Xcode wrapper folder
+│   ├── BearDown.xcodeproj                    ← the project file
+│   ├── BearDown/                             ← app sources
+│   │   ├── App/
+│   │   ├── Models/
+│   │   ├── Persistence/
+│   │   ├── Coach/
+│   │   ├── Notifications/
+│   │   ├── Keychain/
+│   │   ├── ViewModels/
+│   │   └── Views/{Onboarding,Week,Plan,Coach,Settings,Shared}/
+│   ├── BearDownTests/                        ← unit tests + Fixtures/
+│   └── BearDownUITests/                      ← XCUITest
+```
+
+**All source paths in commands use `BearDown/BearDown/...` from repo root.** Don't `cd` — past attempts to `cd BearDown` then run `xcodebuild` confused subsequent commands. Use absolute paths.
+
+## Build / test commands
+
+```bash
+# Build
+xcodebuild build -project BearDown/BearDown.xcodeproj -scheme BearDown \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet
+
+# Run unit tests
+xcodebuild test -project BearDown/BearDown.xcodeproj -scheme BearDown \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -only-testing:BearDownTests -quiet
+
+# Run a single suite
+xcodebuild test ... -only-testing:BearDownTests/CoachServiceTests -quiet
+
+# Install + launch on the booted simulator
+xcrun simctl install booted /tmp/beardown-dd/Build/Products/Debug-iphonesimulator/BearDown.app
+xcrun simctl launch booted Hirey.BearDown
+```
+
+**Bundle id:** `Hirey.BearDown`. **Simulator:** `iPhone 17 Pro` (Xcode 26 setup). The original plan said `iPhone 15 Pro` — that simulator doesn't exist here.
+
+## Xcode 16 file-system synchronized groups
+
+The project uses `PBXFileSystemSynchronizedRootGroup`. **Dropping a `.swift` file into `BearDown/BearDown/...` automatically adds it to the BearDown target.** Same for `BearDown/BearDownTests/...` and the test target. No `.pbxproj` editing needed.
+
+Non-Swift resources (e.g. `.txt` fixtures in `BearDownTests/Fixtures/`) also auto-bundle correctly via `Bundle(for: Self.self).url(forResource:withExtension:)`.
+
+## SourceKit live lint is noisy and stale
+
+Expect lots of "Cannot find type X in scope" / "No such module 'XCTest'" diagnostics in the editor even when `xcodebuild` succeeds. The live indexer lags behind the real build state. **Trust `xcodebuild` exit codes, not SourceKit diagnostics.** If `xcodebuild build` returns 0, the code compiles.
+
+## Critical gotchas hit during initial build (do not repeat)
+
+### 1. Never override `objectWillChange` on `ObservableObject` in Swift 5 mode
+
+Subagents kept adding this "Swift 6 concurrency workaround" to every ObservableObject:
+
+```swift
+// ❌ DO NOT DO THIS — silently breaks @Published binding propagation
+public nonisolated let objectWillChange = PassthroughSubject<Void, Never>()
+```
+
+`@Published` only fires on the *synthesized* `objectWillChange`. When you override it with your own subject, the conformer must call `.send()` manually on every property change — which we weren't doing. **Symptom:** TextField bindings appear to work but the view never re-evaluates (e.g. the Coach composer's send button stayed greyed out forever because `vm.draft` changes didn't propagate).
+
+Project is `SWIFT_VERSION = 5.0` (no strict concurrency). The workaround was solving a problem that didn't exist. Removed in commit `d315846`.
+
+If you ever hit a *real* Swift 6 concurrency warning on `objectWillChange`, the fix is to enable strict concurrency on a per-file basis or upgrade the project, NOT to override the publisher.
+
+### 2. `@Transient` not `@Attribute(.transient)`
+
+`@Attribute(.transient)` doesn't exist. Use `@Transient` (peer macro) for SwiftData properties that should not sync via CloudKit or persist:
+
+```swift
+@Transient public var notificationId: String?
+```
+
+### 3. In-memory test containers need `cloudKitDatabase: .none`
+
+The app has the CloudKit entitlement. SwiftData runs CloudKit schema validation even on in-memory stores unless you explicitly opt out:
+
+```swift
+let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+```
+
+`ModelContainer.beardownInMemory()` already does this. **Always use the factory** in tests rather than constructing your own `ModelConfiguration`.
+
+### 4. Never fall back to in-memory for the production container
+
+`AppEnvironment.production()` can fail (no iCloud, missing entitlement). The fallback chain is:
+
+```
+try beardownProduction()       // CloudKit-synced
+  ↳ try beardownLocalOnly()    // on-disk, no sync  ← preserves user data
+    ↳ fatalError
+```
+
+**Do not fall back to `beardownInMemory()`** — that would silently throw away the user's training plans on every relaunch.
+
+### 5. `StateObject` autoclosure can't take throwing expressions
+
+This won't compile:
+```swift
+// ❌
+_env = StateObject(wrappedValue: try AppEnvironment.production())
+```
+
+Assign to a local first:
+```swift
+let environment: AppEnvironment
+do { environment = try AppEnvironment.production() } catch { ... }
+_env = StateObject(wrappedValue: environment)
+```
+
+### 6. JSON `.prettyPrinted` adds spaces around colons
+
+`JSONSerialization.WritingOptions.prettyPrinted` renders `"title" : "X"` (spaces). Plain assertions like `result.contains("\"title\":\"X\"")` fail. Use `.sortedKeys` alone for compact, deterministic JSON.
+
+### 7. xcrun simctl: keep the simulator booted between commands
+
+`xcrun simctl install booted ...` requires a booted simulator. If a prior `xcrun simctl terminate booted ...` or simulator restart killed it, re-boot before install:
+
+```bash
+xcrun simctl boot 'iPhone 17 Pro'
+xcrun simctl install booted /path/to/BearDown.app
+xcrun simctl launch booted Hirey.BearDown
+```
+
+Pasting strings into the simulator clipboard (e.g. to inject an API key during testing):
+```bash
+printf 'sk-ant-...' | xcrun simctl pbcopy booted
+```
+Then long-press the SecureField → Paste.
+
+## Architecture pointers
+
+- **Repositories are the only layer touching `ModelContext`.** Views and view models go through `PlanRepository`, `WorkoutRepository`, `ChatRepository`. Don't add `@Query` in views; query through repos.
+- **`CoachService` is the agent turn loop.** Streams events from `AnthropicClient`, accumulates text + tool calls, dispatches tools, persists chat messages with raw tool JSON for replay. Capped at 10 tool iterations per user turn.
+- **`CoachPrompt` is layered:** verbatim coaching persona (Appendix A of the design spec) + app-owned tool addendum + per-turn context block (today's date, active plan snapshot, 14-day history). The persona must never be paraphrased or normalized — it's the user's domain.
+- **`NotificationScheduler` is an actor.** Repository methods stay sync and fire fire-and-forget `Task { await scheduler.... }` to schedule/cancel. Brief race window between save and schedule; acceptable for v1.
+- **`AppNavigation`** is the cross-tab navigation observable (selected tab + `weekFocusedDate` for chip-tap navigation from Coach to Week).
+
+## What worked well during initial build
+
+- **TDD discipline.** Every layer (parser, repos, scheduler, service, tools) was written test-first and stayed test-green throughout. Made the refactors near the end of the build (notification hooks, scheduler wiring) safe.
+- **Xcode 16 synchronized groups.** Massive time-saver vs. hand-editing `.pbxproj` for every new file. Subagents could drop files anywhere under the source/test trees and Xcode picked them up.
+- **Fake/scripted Anthropic clients in tests.** `ScriptedAnthropicClient` (yields pre-recorded `AnthropicEvent` sequences) let us test the full tool loop without network. Recorded SSE fixtures (`stream-text-only.txt`, `stream-with-tool-use.txt`) test the parser deterministically.
+- **Recording deviations in subagent reports.** When a subagent had to deviate from the plan (e.g. `cloudKitDatabase: .none`, JSON `.prettyPrinted` issue), they reported it back. We patched the plan in-place so subsequent tasks didn't rediscover.
+
+## What didn't work / things to watch
+
+- **Subagents pattern-matched a non-issue.** They saw "Swift 6 concurrency" warnings on one file and applied a "fix" everywhere — including places where Swift 6 wasn't even enabled. The fix was harmful. **Verify a workaround is needed before generalizing it.** Check `SWIFT_VERSION` in the .pbxproj before reaching for concurrency workarounds.
+- **UI test runner is flaky.** "Mach error -308 - server died" on the first attempt is common. Retrying usually works. If it persists, restart the simulator or run via Xcode UI rather than `xcodebuild test`.
+- **SourceKit diagnostics drowned out signal.** The skill loop kept surfacing stale "Cannot find type" errors after every edit, even when builds were clean. Future sessions: skim diagnostics for *new* concerns (real errors), but trust `xcodebuild` as ground truth.
+- **The "Mark…" menu accessibility-label assertion in XCUITest was fragile.** UI tests that match on SF Symbol image labels are unreliable — prefer asserting on text changes ("Mark…" → "✓ Completed") via the toolbar menu label.
+
+## Where to look first
+
+| You want to... | Read this |
+|---|---|
+| Add a new tool the coach can call | `BearDown/Coach/CoachTools.swift` (`definitions` + `dispatch`) and `BearDown/Coach/CoachPrompt.swift` (`toolAddendum`) |
+| Change what data persists | `BearDown/Models/*.swift` + `BearDown/Persistence/*.swift` |
+| Adjust the coaching persona | `BearDown/Coach/CoachPrompt.swift` `coachingPersona` constant (verbatim from spec Appendix A) |
+| Adjust streaming/turn-loop behavior | `BearDown/Coach/CoachService.swift` |
+| Change notification scheduling | `BearDown/Notifications/NotificationScheduler.swift` + repository hooks in `WorkoutRepository.swift` |
+| Add a tab or change navigation | `BearDown/Views/Shared/RootView.swift` + `BearDown/App/AppNavigation.swift` |
+| Run UI tests reliably | Open the project in Xcode and use ⌘U; `xcodebuild test -only-testing:BearDownUITests` is flaky |
+
+## Style preferences
+
+- Match existing patterns. Repos use `@MainActor`. View models are `@MainActor ObservableObject` with plain synthesized `objectWillChange`. SwiftData models follow the `statusRaw: String` + computed enum accessor pattern (CloudKit-friendly).
+- Don't add comments explaining what the code does — well-named identifiers already do that. Add a one-line comment only when the *why* is non-obvious (a workaround, a hidden constraint, an iCloud quirk).
+- Keep files focused. The existing tree splits by responsibility: one repo per aggregate, one view per screen, one VM per feature. Don't merge unrelated concerns.
