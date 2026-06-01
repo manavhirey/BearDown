@@ -62,9 +62,15 @@ public struct WeekView: View {
         .padding(.horizontal)
     }
 
+    private static let rangeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
+        return f
+    }()
+
     private func rangeLabel() -> String {
-        let f = DateFormatter(); f.dateFormat = "MMM d"
-        let last = vm.days.last!
+        let last = vm.days.last ?? vm.weekStart
+        let f = Self.rangeFormatter
         return "\(f.string(from: vm.weekStart)) – \(f.string(from: last))"
     }
 
@@ -76,8 +82,10 @@ public struct WeekView: View {
         } label: {
             HStack(spacing: 12) {
                 VStack {
-                    Text(weekday(day)).font(.caption).foregroundStyle(.secondary)
-                    Text(dayNumber(day)).font(.title2.bold())
+                    Text(day, format: .dateTime.weekday(.abbreviated))
+                        .font(.caption).foregroundStyle(.secondary)
+                    Text(day, format: .dateTime.day())
+                        .font(.title2.bold())
                 }
                 .frame(width: 56)
                 .padding(.vertical, 8)
@@ -102,12 +110,6 @@ public struct WeekView: View {
         .disabled(w == nil)
     }
 
-    private func weekday(_ d: Date) -> String {
-        let f = DateFormatter(); f.dateFormat = "EEE"; return f.string(from: d)
-    }
-    private func dayNumber(_ d: Date) -> String {
-        let f = DateFormatter(); f.dateFormat = "d"; return f.string(from: d)
-    }
     private func badges(for w: Workout) -> [String] {
         var b: [String] = []
         let kinds = Set(w.blocks.map(\.kind))
