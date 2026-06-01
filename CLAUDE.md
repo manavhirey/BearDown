@@ -18,7 +18,8 @@ Xcode created a nested wrapper folder. The git repo root and the Xcode project r
 ├── BearDown/                                 ← Xcode wrapper folder
 │   ├── BearDown.xcodeproj                    ← the project file
 │   ├── BearDown/                             ← app sources
-│   │   ├── App/
+│   │   ├── BearDownApp.swift                 ← @main entry (lives at the source root, NOT inside App/)
+│   │   ├── App/                              ← AppEnvironment, AppNavigation
 │   │   ├── Models/
 │   │   ├── Persistence/
 │   │   ├── Coach/
@@ -146,6 +147,14 @@ printf 'sk-ant-...' | xcrun simctl pbcopy booted
 ```
 Then long-press the SecureField → Paste.
 
+## Git workflow
+
+- **Active branch:** `feat/initial-implementation` (v0.1, pushed to `origin`, not yet merged to `main`).
+- **Remote:** `git@github.com:manavhirey/BearDown.git` (SSH, authenticated via `gh` CLI).
+- **Push:** `git push` — branch is tracking `origin/feat/initial-implementation`.
+- **Open a PR:** `gh pr create --base main --head feat/initial-implementation --fill`.
+- **Merge to main locally** (skip PR review): `git checkout main && git merge --no-ff feat/initial-implementation && git push`.
+
 ### 8. The agent has no `create_plan` tool — repos must auto-create
 
 The coach exposes three tools: `upsert_workout`, `delete_workout`, `get_recent_history`. There is intentionally no `create_plan` tool. `WorkoutRepository.upsert` auto-creates a "Current Block" plan if none exists, so the agent's first `upsert_workout` call doesn't bounce off `RepositoryError.noActivePlan`. If you add a tool that mutates the plan in any way, mirror this pattern — don't expose plan creation as a separate agent step. Caught during fresh-install smoke test (commit `fbe8cf0`).
@@ -208,14 +217,16 @@ If a view's `body` needs to differentiate states (e.g. "no plan yet" vs "loading
 
 ## Where to look first
 
+All paths below are from the repo root. The `BearDown/BearDown/...` prefix reflects Xcode's nested wrapper folder.
+
 | You want to... | Read this |
 |---|---|
-| Add a new tool the coach can call | `BearDown/Coach/CoachTools.swift` (`definitions` + `dispatch`) and `BearDown/Coach/CoachPrompt.swift` (`toolAddendum`) |
-| Change what data persists | `BearDown/Models/*.swift` + `BearDown/Persistence/*.swift` |
-| Adjust the coaching persona | `BearDown/Coach/CoachPrompt.swift` `coachingPersona` constant (verbatim from spec Appendix A) |
-| Adjust streaming/turn-loop behavior | `BearDown/Coach/CoachService.swift` |
-| Change notification scheduling | `BearDown/Notifications/NotificationScheduler.swift` + repository hooks in `WorkoutRepository.swift` |
-| Add a tab or change navigation | `BearDown/Views/Shared/RootView.swift` + `BearDown/App/AppNavigation.swift` |
+| Add a new tool the coach can call | `BearDown/BearDown/Coach/CoachTools.swift` (`definitions` + `dispatch`) and `BearDown/BearDown/Coach/CoachPrompt.swift` (`toolAddendum`) |
+| Change what data persists | `BearDown/BearDown/Models/*.swift` + `BearDown/BearDown/Persistence/*.swift` |
+| Adjust the coaching persona | `BearDown/BearDown/Coach/CoachPrompt.swift` `coachingPersona` constant (verbatim from spec Appendix A) |
+| Adjust streaming/turn-loop behavior | `BearDown/BearDown/Coach/CoachService.swift` |
+| Change notification scheduling | `BearDown/BearDown/Notifications/NotificationScheduler.swift` + repository hooks in `BearDown/BearDown/Persistence/WorkoutRepository.swift` |
+| Add a tab or change navigation | `BearDown/BearDown/Views/Shared/RootView.swift` + `BearDown/BearDown/App/AppNavigation.swift` |
 | Run UI tests reliably | Open the project in Xcode and use ⌘U; `xcodebuild test -only-testing:BearDownUITests` is flaky |
 
 ## Style preferences
