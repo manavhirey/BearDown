@@ -22,7 +22,9 @@ public struct RootView: View {
             } else {
                 let vm = OnboardingViewModel(
                     keychain: env.keychain,
-                    validate: { _ in /* stub — replaced with real AnthropicClient.validate in Task 17 */ }
+                    validate: { [client = env.anthropic] key in
+                        try await client.validate(apiKey: key)
+                    }
                 )
                 OnboardingView(viewModel: vm) { hasKey = true }
             }

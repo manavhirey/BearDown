@@ -8,14 +8,17 @@ public final class AppEnvironment: ObservableObject {
 
     public let modelContainer: ModelContainer
     public let keychain: KeychainStore
+    public let anthropic: AnthropicClientProtocol
     public let plans: PlanRepository
     public let workouts: WorkoutRepository
     public let chats: ChatRepository
 
     public init(modelContainer: ModelContainer,
-                keychain: KeychainStore? = nil) {
+                keychain: KeychainStore? = nil,
+                anthropic: AnthropicClientProtocol = AnthropicClient()) {
         self.modelContainer = modelContainer
         self.keychain = keychain ?? KeychainStore()
+        self.anthropic = anthropic
         let ctx = modelContainer.mainContext
         self.plans = PlanRepository(context: ctx)
         self.workouts = WorkoutRepository(context: ctx, plans: plans)
