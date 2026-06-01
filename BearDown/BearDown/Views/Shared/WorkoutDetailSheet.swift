@@ -5,9 +5,14 @@ public struct WorkoutDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showingNoteEditor: Bool = false
     @State private var pendingStatus: WorkoutStatus?
+    @State private var saveError: String?
 
     public init(vm: WorkoutDetailViewModel) {
         self.vm = vm
+    }
+
+    private var sortedBlocks: [WorkoutBlock] {
+        vm.workout.blocks.sorted { $0.order < $1.order }
     }
 
     public var body: some View {
@@ -16,10 +21,10 @@ public struct WorkoutDetailSheet: View {
                 Section {
                     Text(vm.workout.summary).foregroundStyle(.secondary)
                 }
-                ForEach(vm.workout.blocks.sorted(by: { $0.order < $1.order })) { b in
+                ForEach(sortedBlocks) { b in
                     Section(header: Text(headerLabel(b))) {
                         if b.kind == .strength {
-                            ForEach(b.exercises.sorted(by: { $0.order < $1.order })) { e in
+                            ForEach(b.exercises.sorted { $0.order < $1.order }) { e in
                                 VStack(alignment: .leading) {
                                     Text(e.name).bold()
                                     Text("\(e.sets) × \(e.reps)\(e.load.map { " @ \($0)" } ?? "")")
@@ -30,7 +35,7 @@ public struct WorkoutDetailSheet: View {
                         } else if b.kind == .cardio, let c = b.cardio {
                             Text(c.modality).bold()
                             if let mins = c.durationMinutes { Text("\(mins) min").foregroundStyle(.secondary) }
-                            if let d = c.distanceMeters { Text(String(format: "%.0f m", d)).foregroundStyle(.secondary) }
+                            if let d = c.distanceMeters { Text("\(Int(d.rounded())) m").foregroundStyle(.secondary) }
                             if let t = c.targetDescription { Text(t).foregroundStyle(.secondary) }
                             if !b.notes.isEmpty { Text(b.notes).font(.footnote).foregroundStyle(.secondary) }
                         } else {
@@ -54,6 +59,12 @@ public struct WorkoutDetailSheet: View {
                 }
             }
             .navigationTitle(vm.workout.title)
+            .alert("Couldn’t save",
+                   isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+                Button("OK") { saveError = nil }
+            } message: {
+                Text(saveError ?? "")
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu(currentLabel()) {
@@ -93,6 +104,8 @@ public struct WorkoutDetailSheet: View {
             }
             showingNoteEditor = false
             pendingStatus = nil
-        } catch { /* surfaced by Workout query refreshing */ }
+        } catch {
+            saveError = error.localizedDescription
+        }
     }
 }
