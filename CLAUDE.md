@@ -146,6 +146,40 @@ printf 'sk-ant-...' | xcrun simctl pbcopy booted
 ```
 Then long-press the SecureField → Paste.
 
+### 8. The agent has no `create_plan` tool — repos must auto-create
+
+The coach exposes three tools: `upsert_workout`, `delete_workout`, `get_recent_history`. There is intentionally no `create_plan` tool. `WorkoutRepository.upsert` auto-creates a "Current Block" plan if none exists, so the agent's first `upsert_workout` call doesn't bounce off `RepositoryError.noActivePlan`. If you add a tool that mutates the plan in any way, mirror this pattern — don't expose plan creation as a separate agent step. Caught during fresh-install smoke test (commit `fbe8cf0`).
+
+### 9. View models that pass `Sendable` callbacks to async work need optimistic UI
+
+`CoachViewModel.send` calls into the async `CoachService.send` which doesn't return until the entire stream completes. `vm.messages` is only refreshed after that returns. Without an optimistic append in `send`, the user types a message, taps send, and sees nothing change until the agent finishes responding several seconds later. **Always optimistically append the user message before kicking off the async call.** Pattern in `CoachViewModel.send` (commit `111b220`).
+
+### 10. Construct child VMs inside the `@StateObject` autoclosure, not in body
+
+This is wrong (creates the VM on every body re-eval, even though `@StateObject` only keeps the first instance):
+
+```swift
+// ❌ in RootView.body
+SettingsView(vm: SettingsViewModel(env: env))   // VM constructor runs every render
+```
+
+This is right (autoclosure means SwiftUI only evaluates it once):
+
+```swift
+// ✅ in SettingsView
+public init(env: AppEnvironment) {
+    _vm = StateObject(wrappedValue: SettingsViewModel(env: env))
+}
+// in RootView.body
+SettingsView(env: env)
+```
+
+All child views in this project (`WeekView`, `PlanView`, `CoachView`, `SettingsView`) take `env: AppEnvironment` and create their VM via `@StateObject(wrappedValue:)`. Don't break this pattern by reverting to the `vm:` parameter form. Fixed in commit `715994d`.
+
+### 11. Don't read repositories from view `body`
+
+If a view's `body` needs to differentiate states (e.g. "no plan yet" vs "loading from iCloud"), expose the distinction as `@Published` state on the ViewModel and let `refresh()` compute it. Doing `(try? env.plans.activePlan()) == nil` directly in `body` runs a SwiftData fetch on every render. Pattern: `PlanViewModel.hasPlan` flag set in `refresh()`. Fixed in commit `57b467a`.
+
 ## Architecture pointers
 
 - **Repositories are the only layer touching `ModelContext`.** Views and view models go through `PlanRepository`, `WorkoutRepository`, `ChatRepository`. Don't add `@Query` in views; query through repos.
@@ -153,6 +187,8 @@ Then long-press the SecureField → Paste.
 - **`CoachPrompt` is layered:** verbatim coaching persona (Appendix A of the design spec) + app-owned tool addendum + per-turn context block (today's date, active plan snapshot, 14-day history). The persona must never be paraphrased or normalized — it's the user's domain.
 - **`NotificationScheduler` is an actor.** Repository methods stay sync and fire fire-and-forget `Task { await scheduler.... }` to schedule/cancel. Brief race window between save and schedule; acceptable for v1.
 - **`AppNavigation`** is the cross-tab navigation observable (selected tab + `weekFocusedDate` for chip-tap navigation from Coach to Week).
+- **ViewModels load data via `.onAppear`, not from `init()`.** Each `*ViewModel.init` is intentionally cheap — no repo calls, no `refresh()`. The owning view triggers the first load via `.onAppear { vm.refresh() }` (also runs on tab-switch returns). Don't reintroduce `refresh()` calls into VM inits — they'd double-fetch on every first appearance. Established in commit `947a16b`.
+- **`CoachViewModel.chips(for:)` is the entry point for tool-call chip rendering.** Chips are pre-computed during `refresh()` and cached in `chipCache: [UUID: [ChatBubble.ToolChip]]`. The view does O(1) lookup. If you add a new agent tool, update `CoachViewModel.computeChips(from:)` (not the view) to format its chip.
 
 ## What worked well during initial build
 
@@ -160,10 +196,12 @@ Then long-press the SecureField → Paste.
 - **Xcode 16 synchronized groups.** Massive time-saver vs. hand-editing `.pbxproj` for every new file. Subagents could drop files anywhere under the source/test trees and Xcode picked them up.
 - **Fake/scripted Anthropic clients in tests.** `ScriptedAnthropicClient` (yields pre-recorded `AnthropicEvent` sequences) let us test the full tool loop without network. Recorded SSE fixtures (`stream-text-only.txt`, `stream-with-tool-use.txt`) test the parser deterministically.
 - **Recording deviations in subagent reports.** When a subagent had to deviate from the plan (e.g. `cloudKitDatabase: .none`, JSON `.prettyPrinted` issue), they reported it back. We patched the plan in-place so subsequent tasks didn't rediscover.
+- **`swiftui-pro` + `swift-testing-expert` skills as a post-build code review pass.** Ran both against the v1 codebase after smoke testing. Surfaced 7 important fixes (DateFormatter allocations, body-side DB calls, silent save errors, double-`refresh` in VM inits, JSON parsing per render, two test correctness issues) that unit tests didn't catch. **Run these skills after major implementation work** before shipping — they catch the class of issues TDD misses (perf, error UX, view-data-flow).
 
 ## What didn't work / things to watch
 
 - **Subagents pattern-matched a non-issue.** They saw "Swift 6 concurrency" warnings on one file and applied a "fix" everywhere — including places where Swift 6 wasn't even enabled. The fix was harmful. **Verify a workaround is needed before generalizing it.** Check `SWIFT_VERSION` in the .pbxproj before reaching for concurrency workarounds.
+- **Unit tests don't catch view-data-flow bugs.** The `objectWillChange` override bug, the missing optimistic UI for user messages, and the per-render DB fetch in `PlanView.body` all passed every unit test but were broken in the running app. **Smoke test in the simulator after every major feature**, not just at the end. `swiftui-pro` review is a partial substitute, but real-app testing catches what static analysis can't.
 - **UI test runner is flaky.** "Mach error -308 - server died" on the first attempt is common. Retrying usually works. If it persists, restart the simulator or run via Xcode UI rather than `xcodebuild test`.
 - **SourceKit diagnostics drowned out signal.** The skill loop kept surfacing stale "Cannot find type" errors after every edit, even when builds were clean. Future sessions: skim diagnostics for *new* concerns (real errors), but trust `xcodebuild` as ground truth.
 - **The "Mark…" menu accessibility-label assertion in XCUITest was fragile.** UI tests that match on SF Symbol image labels are unreliable — prefer asserting on text changes ("Mark…" → "✓ Completed") via the toolbar menu label.
@@ -185,3 +223,15 @@ Then long-press the SecureField → Paste.
 - Match existing patterns. Repos use `@MainActor`. View models are `@MainActor ObservableObject` with plain synthesized `objectWillChange`. SwiftData models follow the `statusRaw: String` + computed enum accessor pattern (CloudKit-friendly).
 - Don't add comments explaining what the code does — well-named identifiers already do that. Add a one-line comment only when the *why* is non-obvious (a workaround, a hidden constraint, an iCloud quirk).
 - Keep files focused. The existing tree splits by responsibility: one repo per aggregate, one view per screen, one VM per feature. Don't merge unrelated concerns.
+- **Use `Text(date, format: .dateTime...)` not `DateFormatter`** for date display in views. Zero allocation, locale-aware. Only fall back to a `static let DateFormatter` when you need a custom format that `FormatStyle` can't express cleanly.
+- **Save errors must be visible to the user.** If a user-initiated action throws (mark-complete, replace-key, etc.), surface it via `.alert`. Silent `catch {}` blocks are a no-no — see `WorkoutDetailSheet.save()` for the canonical pattern (`@State var saveError: String?` + alert binding).
+
+## Future tightening (deferred, not blocking)
+
+These came out of the post-build review and are tracked for a future polish pass:
+
+- Replace `AppNavigation.selectedTab: Int` with a typed `Tab` enum (eliminates magic numbers in `WeekView`, `CoachView`, `RootView`).
+- Add VoiceOver text labels to icon-only buttons (notably the Coach send button at `CoachView.swift:66`).
+- Extract `FakeAnthropicClient`, `ScriptedAnthropicClient`, and `dateFromIso` into `BearDownTests/TestSupport.swift` — currently scattered across three test files.
+- Optionally migrate `EnumsTests.swift` to Swift Testing as a parameterized test (`@Test(arguments:)`). Per the `swift-testing-expert` review: do this opportunistically, not as a sweep. Keep SwiftData-heavy suites on XCTest.
+- Delete the Xcode-generated `BearDownTests/BearDownTests.swift` `example()` stub.
