@@ -12,6 +12,7 @@ public final class AppEnvironment: ObservableObject {
     public let plans: PlanRepository
     public let workouts: WorkoutRepository
     public let chats: ChatRepository
+    public let coach: CoachService
 
     public init(modelContainer: ModelContainer,
                 keychain: KeychainStore? = nil,
@@ -23,6 +24,13 @@ public final class AppEnvironment: ObservableObject {
         self.plans = PlanRepository(context: ctx)
         self.workouts = WorkoutRepository(context: ctx, plans: plans)
         self.chats = ChatRepository(context: ctx)
+        let toolsImpl = CoachTools(plans: plans, workouts: workouts)
+        self.coach = CoachService(client: anthropic,
+                                  keychain: self.keychain,
+                                  chats: chats,
+                                  tools: toolsImpl,
+                                  workouts: workouts,
+                                  plans: plans)
     }
 
     public static func production() throws -> AppEnvironment {
