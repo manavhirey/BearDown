@@ -20,7 +20,7 @@ public struct RootView: View {
                     CoachView(env: env)
                         .tabItem { Label("Coach", systemImage: "bubble.left.and.bubble.right") }
                         .tag(2)
-                    SettingsView()
+                    SettingsView(vm: SettingsViewModel(env: env))
                         .tabItem { Label("Settings", systemImage: "gear") }
                         .tag(3)
                 }
