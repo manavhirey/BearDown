@@ -42,6 +42,11 @@ public final class CoachViewModel: ObservableObject {
         guard !trimmed.isEmpty else { return }
         draft = ""
         lastUserText = trimmed
+        // Show the user's bubble immediately. runSend persists + refreshes,
+        // but only after the entire stream completes — without this optimistic
+        // append, the user wouldn't see their own message during streaming.
+        let cid = env.chats.currentConversationId()
+        messages.append(ChatMessage(role: .user, text: trimmed, conversationId: cid))
         await runSend(userText: trimmed)
     }
 
