@@ -18,6 +18,17 @@ final class WorkoutRepositoryTests: XCTestCase {
                                     endDate: .now.addingTimeInterval(28 * 86400))
     }
 
+    func test_upsert_autoCreatesPlanWhenNoneExists() throws {
+        // Fresh container, no plan pre-created.
+        let c = try ModelContainer.beardownInMemory()
+        let p = PlanRepository(context: c.mainContext)
+        let w = WorkoutRepository(context: c.mainContext, plans: p)
+        XCTAssertNil(try p.activePlan())
+        _ = try w.upsert(.init(date: .now, title: "First", summary: "", blocks: []))
+        let active = try XCTUnwrap(try p.activePlan())
+        XCTAssertEqual(active.title, "Current Block")
+    }
+
     func test_upsert_createsANewWorkout() throws {
         let input = WorkoutInput(
             date: .now,

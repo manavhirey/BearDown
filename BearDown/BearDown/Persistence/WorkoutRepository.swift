@@ -106,10 +106,17 @@ public final class WorkoutRepository {
 
     @discardableResult
     public func upsert(_ input: WorkoutInput) throws -> Workout {
-        guard let plan = try plans.activePlan() else {
-            throw RepositoryError.noActivePlan
+        // Auto-create a plan on first use. The agent has no create_plan tool;
+        // without this fallback the very first upsert_workout call would fail.
+        let plan: TrainingPlan
+        if let existing = try plans.activePlan() {
+            plan = existing
+            try plans.extendActivePlan(throughDate: input.date)
+        } else {
+            plan = try plans.createPlan(title: "Current Block",
+                                        startDate: input.date,
+                                        endDate: input.date)
         }
-        try plans.extendActivePlan(throughDate: input.date)
 
         let day = Calendar.current.startOfDay(for: input.date)
         let next = day.addingTimeInterval(86400)
