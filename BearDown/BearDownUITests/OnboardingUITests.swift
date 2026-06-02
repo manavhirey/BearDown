@@ -16,6 +16,8 @@ final class OnboardingUITests: XCTestCase {
         app.buttons["Continue"].tap()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 5))
         app.tabBars.buttons["Coach"].tap()
-        XCTAssertTrue(app.navigationBars["Coach"].exists)
+        // CoachView now uses an editorial in-toolbar title stack ("COACH" eyebrow
+        // + serif "Today's session") instead of the system navigationTitle.
+        XCTAssertTrue(app.staticTexts["Today's session"].waitForExistence(timeout: 5))
     }
 }

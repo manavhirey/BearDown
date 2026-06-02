@@ -4,7 +4,7 @@ Notes for future Claude sessions on this iOS app. Skim before making changes.
 
 ## What this is
 
-Native iOS 17+ SwiftUI app. A hardcoded coaching agent (Anthropic Claude Sonnet 4.6, with the user's verbatim "Hybrid Athlete Coach" prompt) generates 4-week training blocks via tool calls. The app persists workouts to SwiftData with CloudKit sync, renders them as a week calendar and full plan view, and lets the user mark each workout completed or failed. Per-workout local notifications.
+Native iOS 17+ SwiftUI app. A hardcoded coaching agent (Anthropic Claude Sonnet 4.6, with the user's verbatim "Hybrid Athlete Coach" prompt) generates 4-week training blocks via tool calls. The app persists workouts to SwiftData with CloudKit sync, renders them as a single-day Today view and a full plan view, and lets the user mark each workout completed or failed. Per-workout local notifications.
 
 Full design rationale: `docs/superpowers/specs/2026-05-31-beardown-design.md`. Original implementation plan: `docs/superpowers/plans/2026-05-31-beardown.md`. Manual test checklist: `docs/manual-tests.md`.
 
@@ -26,7 +26,7 @@ Xcode created a nested wrapper folder. The git repo root and the Xcode project r
 │   │   ├── Notifications/
 │   │   ├── Keychain/
 │   │   ├── ViewModels/
-│   │   └── Views/{Onboarding,Week,Plan,Coach,Settings,Shared}/
+│   │   └── Views/{Onboarding,Today,Plan,Coach,Settings,Shared}/
 │   ├── BearDownTests/                        ← unit tests + Fixtures/
 │   └── BearDownUITests/                      ← XCUITest
 ```
@@ -183,7 +183,7 @@ public init(env: AppEnvironment) {
 SettingsView(env: env)
 ```
 
-All child views in this project (`WeekView`, `PlanView`, `CoachView`, `SettingsView`) take `env: AppEnvironment` and create their VM via `@StateObject(wrappedValue:)`. Don't break this pattern by reverting to the `vm:` parameter form. Fixed in commit `715994d`.
+All child views in this project (`TodayView`, `PlanView`, `CoachView`, `SettingsView`) take `env: AppEnvironment` and create their VM via `@StateObject(wrappedValue:)`. Don't break this pattern by reverting to the `vm:` parameter form. Fixed in commit `715994d`.
 
 ### 11. Don't read repositories from view `body`
 
@@ -195,7 +195,7 @@ If a view's `body` needs to differentiate states (e.g. "no plan yet" vs "loading
 - **`CoachService` is the agent turn loop.** Streams events from `AnthropicClient`, accumulates text + tool calls, dispatches tools, persists chat messages with raw tool JSON for replay. Capped at 10 tool iterations per user turn.
 - **`CoachPrompt` is layered:** verbatim coaching persona (Appendix A of the design spec) + app-owned tool addendum + per-turn context block (today's date, active plan snapshot, 14-day history). The persona must never be paraphrased or normalized — it's the user's domain.
 - **`NotificationScheduler` is an actor.** Repository methods stay sync and fire fire-and-forget `Task { await scheduler.... }` to schedule/cancel. Brief race window between save and schedule; acceptable for v1.
-- **`AppNavigation`** is the cross-tab navigation observable (selected tab + `weekFocusedDate` for chip-tap navigation from Coach to Week).
+- **`AppNavigation`** is the cross-tab navigation observable (selected tab + `focusedDate` for chip-tap navigation from Coach to Today).
 - **ViewModels load data via `.onAppear`, not from `init()`.** Each `*ViewModel.init` is intentionally cheap — no repo calls, no `refresh()`. The owning view triggers the first load via `.onAppear { vm.refresh() }` (also runs on tab-switch returns). Don't reintroduce `refresh()` calls into VM inits — they'd double-fetch on every first appearance. Established in commit `947a16b`.
 - **`CoachViewModel.chips(for:)` is the entry point for tool-call chip rendering.** Chips are pre-computed during `refresh()` and cached in `chipCache: [UUID: [ChatBubble.ToolChip]]`. The view does O(1) lookup. If you add a new agent tool, update `CoachViewModel.computeChips(from:)` (not the view) to format its chip.
 
@@ -241,7 +241,7 @@ All paths below are from the repo root. The `BearDown/BearDown/...` prefix refle
 
 These came out of the post-build review and are tracked for a future polish pass:
 
-- Replace `AppNavigation.selectedTab: Int` with a typed `Tab` enum (eliminates magic numbers in `WeekView`, `CoachView`, `RootView`).
+- Replace `AppNavigation.selectedTab: Int` with a typed `Tab` enum (eliminates magic numbers in `TodayView`, `CoachView`, `RootView`).
 - Add VoiceOver text labels to icon-only buttons (notably the Coach send button at `CoachView.swift:66`).
 - Extract `FakeAnthropicClient`, `ScriptedAnthropicClient`, and `dateFromIso` into `BearDownTests/TestSupport.swift` — currently scattered across three test files.
 - Optionally migrate `EnumsTests.swift` to Swift Testing as a parameterized test (`@Test(arguments:)`). Per the `swift-testing-expert` review: do this opportunistically, not as a sweep. Keep SwiftData-heavy suites on XCTest.

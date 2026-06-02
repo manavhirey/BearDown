@@ -11,8 +11,8 @@ public struct RootView: View {
         Group {
             if hasKey {
                 TabView(selection: $nav.selectedTab) {
-                    WeekView(env: env)
-                        .tabItem { Label("Week", systemImage: "calendar") }
+                    TodayView(env: env)
+                        .tabItem { Label("Today", systemImage: "figure.run") }
                         .tag(0)
                     PlanView(env: env)
                         .tabItem { Label("Plan", systemImage: "list.bullet.rectangle") }

@@ -31,9 +31,13 @@ public final class CoachViewModel: ObservableObject {
     public func refresh() {
         let id = env.chats.currentConversationId()
         let msgs = (try? env.chats.messages(in: id)) ?? []
-        messages = msgs
+        // CoachService persists tool-result rows as role=.user with empty text
+        // (required by Anthropic's tool-use API for replay). They're protocol
+        // metadata, not conversation — hide them from the UI.
+        let visible = msgs.filter { !($0.role == .user && $0.text.isEmpty) }
+        messages = visible
         chipCache = Dictionary(uniqueKeysWithValues:
-            msgs.map { ($0.id, Self.computeChips(from: $0)) })
+            visible.map { ($0.id, Self.computeChips(from: $0)) })
     }
 
     /// Pre-computed tool-call chips for an assistant message. O(1) lookup.

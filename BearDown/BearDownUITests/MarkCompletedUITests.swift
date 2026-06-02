@@ -14,36 +14,37 @@ final class MarkCompletedUITests: XCTestCase {
         key.tap(); key.typeText("sk-ant-uitest")
         app.buttons["Continue"].tap()
 
-        // Week tab is default; wait for tab bar then select Week
+        // Today tab is default; wait for tab bar then select Today
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))
-        app.tabBars.buttons["Week"].tap()
+        app.tabBars.buttons["Today"].tap()
 
         // Wait for the seeded workout card to appear (async seed + SwiftData query)
         let pushCard = app.staticTexts.matching(NSPredicate(format: "label == %@", "Push UI")).firstMatch
         XCTAssertTrue(pushCard.waitForExistence(timeout: 10))
 
-        // Tap the card — tapping the static text triggers the parent Button's action
+        // Tap the card — opens the workout detail sheet
         pushCard.tap()
 
-        // Detail sheet: tap status menu (toolbar button "Mark…"), then Mark Completed, then Save
-        let markMenu = app.buttons["Mark…"]
-        XCTAssertTrue(markMenu.waitForExistence(timeout: 5))
-        markMenu.tap()
+        // Detail sheet: primary "Complete" action lives in the bottom action bar.
+        // Button label is uppercased ("COMPLETE") via the redesigned sheet.
+        let completeBtn = app.buttons["COMPLETE"]
+        XCTAssertTrue(completeBtn.waitForExistence(timeout: 5))
+        completeBtn.tap()
 
-        let markCompletedBtn = app.buttons["Mark Completed"]
-        XCTAssertTrue(markCompletedBtn.waitForExistence(timeout: 3))
-        markCompletedBtn.tap()
+        // Inline note editor appears; SAVE commits the status change.
+        let saveBtn = app.buttons["SAVE"]
+        XCTAssertTrue(saveBtn.waitForExistence(timeout: 3))
+        saveBtn.tap()
 
-        app.buttons["Save"].tap()
-        app.buttons["Done"].tap()
+        // Close via the top-left Close button (accessibilityLabel "Close").
+        app.buttons["Close"].tap()
 
         // Verify the saved status by re-opening the detail sheet:
-        // the toolbar menu label should now be "✓ Completed" instead of "Mark…"
+        // once completed, the bottom action bar collapses to "RESET TO PENDING".
         XCTAssertTrue(pushCard.waitForExistence(timeout: 5))
         pushCard.tap()
 
-        // WorkoutDetailSheet currentLabel() returns "✓ Completed" for .completed status
-        let completedMenu = app.buttons["✓ Completed"]
-        XCTAssertTrue(completedMenu.waitForExistence(timeout: 5))
+        let resetBtn = app.buttons["RESET TO PENDING"]
+        XCTAssertTrue(resetBtn.waitForExistence(timeout: 5))
     }
 }

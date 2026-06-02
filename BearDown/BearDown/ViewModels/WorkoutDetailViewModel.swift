@@ -17,6 +17,7 @@ public final class WorkoutDetailViewModel: ObservableObject {
 
     public func markCompleted() throws { try set(.completed) }
     public func markFailed()    throws { try set(.failed) }
+    public func markPending()   throws { try set(.pending) }
 
     private func set(_ status: WorkoutStatus) throws {
         let trimmed = draftNote.trimmingCharacters(in: .whitespacesAndNewlines)

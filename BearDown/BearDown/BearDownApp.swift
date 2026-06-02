@@ -34,8 +34,23 @@ struct BearDownApp: App {
                                                           startDate: .now,
                                                           endDate: .now.addingTimeInterval(7 * 86400))
                 }
-                _ = try? environment.workouts.upsert(.init(date: .now, title: "Push UI",
-                                                           summary: "Bench + OHP", blocks: []))
+                let strength = BlockInput(
+                    order: 0, kind: .strength, title: "Push UI",
+                    notes: "Rest 2 min between sets.",
+                    exercises: [
+                        .init(order: 0, name: "Bench Press", sets: 4, reps: "5", load: "70% 1RM", restSeconds: 120),
+                        .init(order: 1, name: "Overhead Press", sets: 3, reps: "8", load: "60% 1RM", restSeconds: 90),
+                        .init(order: 2, name: "Dumbbell Row", sets: 3, reps: "10", load: "moderate", restSeconds: 75),
+                    ])
+                let cardio = BlockInput(
+                    order: 1, kind: .cardio, title: "Zone 2 Finisher",
+                    notes: "Easy effort — should be able to hold a conversation.",
+                    cardio: .init(modality: "Bike", durationMinutes: 20,
+                                  targetDescription: "RPE 4–5, ~130 bpm"))
+                _ = try? environment.workouts.upsert(.init(
+                    date: .now, title: "Push UI",
+                    summary: "Bench + OHP main lifts, accessory row, then 20 min easy bike to finish.",
+                    blocks: [strength, cardio]))
             }
         }
     }
