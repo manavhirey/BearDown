@@ -53,6 +53,35 @@ struct BearDownApp: App {
                     blocks: [strength, cardio]))
             }
         }
+
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-seed-two-plans") {
+            Task { @MainActor in
+                let today = Calendar.current.startOfDay(for: .now)
+                if (try? environment.plans.activePlan()) == nil {
+                    _ = try? environment.plans.createPlan(
+                        title: "Current Block",
+                        startDate: today.addingTimeInterval(-6 * 86400),
+                        endDate: today.addingTimeInterval(6 * 86400)
+                    )
+                }
+                for offset in [-1, 0, 1] {
+                    _ = try? environment.workouts.upsert(.init(
+                        date: today.addingTimeInterval(TimeInterval(offset) * 86400),
+                        title: "Active W\(offset)",
+                        summary: "Seed",
+                        blocks: []
+                    ))
+                }
+                _ = try? environment.workouts.upsert(.init(
+                    date: today.addingTimeInterval(21 * 86400),
+                    title: "Race long run",
+                    summary: "12mi",
+                    blocks: [],
+                    planTitle: "Race Prep — June 24",
+                    planGoal: "3.5mi race goal pacing block"
+                ))
+            }
+        }
     }
 
     var body: some Scene {
