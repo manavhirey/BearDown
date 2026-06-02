@@ -79,4 +79,43 @@ final class PlanRepositoryTests: XCTestCase {
         XCTAssertEqual(listed.map(\.title), ["Active Block", "Newer Archived", "Older"])
         XCTAssertEqual(listed.first?.id, active.id)
     }
+
+    func test_planById_returnsMatchingPlan() throws {
+        let plan = try repo.createPlan(title: "A", startDate: .now, endDate: .now.addingTimeInterval(86400))
+        let fetched = try repo.plan(id: plan.id)
+        XCTAssertEqual(fetched?.id, plan.id)
+    }
+
+    func test_planById_returnsNilWhenAbsent() throws {
+        let missing = try repo.plan(id: UUID())
+        XCTAssertNil(missing)
+    }
+
+    func test_activate_archivesPriorActiveAndSetsTarget() throws {
+        let first = try repo.createPlan(title: "First",
+                                        startDate: .now,
+                                        endDate: .now.addingTimeInterval(86400))
+        let second = try repo.createPlan(title: "Second",
+                                         startDate: .now,
+                                         endDate: .now.addingTimeInterval(86400))
+        // createPlan auto-archives first. Now activate first again.
+        try repo.activate(planId: first.id)
+        XCTAssertEqual(try repo.activePlan()?.id, first.id)
+
+        let all = try repo.allPlans()
+        let secondReloaded = try XCTUnwrap(all.first { $0.id == second.id })
+        XCTAssertFalse(secondReloaded.isActive)
+        XCTAssertNotNil(secondReloaded.archivedAt)
+    }
+
+    func test_activate_isIdempotentOnAlreadyActive() throws {
+        let plan = try repo.createPlan(title: "A",
+                                       startDate: .now,
+                                       endDate: .now.addingTimeInterval(86400))
+        let originalUpdated = plan.updatedAt
+        try repo.activate(planId: plan.id)
+        XCTAssertEqual(try repo.activePlan()?.id, plan.id)
+        // Idempotent — no archival of self, no updatedAt churn.
+        XCTAssertEqual(plan.updatedAt, originalUpdated)
+    }
 }

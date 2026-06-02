@@ -58,4 +58,27 @@ public final class PlanRepository {
             return lhs.createdAt > rhs.createdAt
         }
     }
+
+    public func plan(id: UUID) throws -> TrainingPlan? {
+        var descriptor = FetchDescriptor<TrainingPlan>(
+            predicate: #Predicate { $0.id == id }
+        )
+        descriptor.fetchLimit = 1
+        return try context.fetch(descriptor).first
+    }
+
+    public func activate(planId: UUID) throws {
+        guard let target = try plan(id: planId) else { return }
+        if target.isActive { return }  // idempotent — no churn
+
+        if let current = try activePlan(), current.id != target.id {
+            current.isActive = false
+            current.archivedAt = .now
+            current.updatedAt = .now
+        }
+        target.isActive = true
+        target.archivedAt = nil
+        target.updatedAt = .now
+        try context.save()
+    }
 }
