@@ -94,4 +94,52 @@ final class WorkoutRepositoryTests: XCTestCase {
         XCTAssertEqual(recent.count, 3)
         XCTAssertEqual(recent[0].title, "Day 0")
     }
+
+    func test_upsert_withPlanTitle_routesToNamedPlanAndLeavesActiveAlone() throws {
+        let active = try plans.createPlan(title: "Current Block",
+                                          startDate: .now,
+                                          endDate: .now.addingTimeInterval(7 * 86400))
+
+        let input = WorkoutInput(
+            date: .now.addingTimeInterval(14 * 86400),
+            title: "Race long run",
+            summary: "12mi",
+            blocks: [],
+            planTitle: "Race Prep",
+            planGoal: "3.5mi race June 24"
+        )
+        let workout = try workouts.upsert(input)
+
+        XCTAssertNotEqual(workout.plan?.id, active.id)
+        XCTAssertEqual(workout.plan?.title, "Race Prep")
+        XCTAssertEqual(workout.plan?.goal, "3.5mi race June 24")
+        XCTAssertFalse(workout.plan!.isActive)
+
+        // Active plan untouched.
+        XCTAssertEqual(try plans.activePlan()?.id, active.id)
+    }
+
+    func test_upsert_withPlanTitle_extendsThatPlansEndDate() throws {
+        _ = try plans.createPlan(title: "Current Block",
+                                 startDate: .now,
+                                 endDate: .now.addingTimeInterval(86400))
+        let firstDate = Calendar.current.startOfDay(for: .now)
+        let lateDate = firstDate.addingTimeInterval(20 * 86400)
+
+        _ = try workouts.upsert(.init(date: firstDate, title: "W1", summary: "",
+                                      blocks: [], planTitle: "Race Prep", planGoal: ""))
+        _ = try workouts.upsert(.init(date: lateDate, title: "W2", summary: "",
+                                      blocks: [], planTitle: "Race Prep", planGoal: ""))
+
+        let racePrep = try plans.allPlans().first { $0.title == "Race Prep" }
+        XCTAssertEqual(racePrep?.endDate, lateDate)
+    }
+
+    func test_upsert_withoutPlanTitle_stillRoutesToActivePlan() throws {
+        let active = try plans.createPlan(title: "Current Block",
+                                          startDate: .now,
+                                          endDate: .now.addingTimeInterval(86400))
+        let workout = try workouts.upsert(.init(date: .now, title: "W", summary: "", blocks: []))
+        XCTAssertEqual(workout.plan?.id, active.id)
+    }
 }

@@ -6,12 +6,17 @@ public struct WorkoutInput: Sendable, Equatable {
     public var title: String
     public var summary: String
     public var blocks: [BlockInput]
+    public var planTitle: String?
+    public var planGoal: String?
 
-    public init(date: Date, title: String, summary: String, blocks: [BlockInput]) {
+    public init(date: Date, title: String, summary: String, blocks: [BlockInput],
+                planTitle: String? = nil, planGoal: String? = nil) {
         self.date = date
         self.title = title
         self.summary = summary
         self.blocks = blocks
+        self.planTitle = planTitle
+        self.planGoal = planGoal
     }
 }
 
@@ -109,7 +114,16 @@ public final class WorkoutRepository {
         // Auto-create a plan on first use. The agent has no create_plan tool;
         // without this fallback the very first upsert_workout call would fail.
         let plan: TrainingPlan
-        if let existing = try plans.activePlan() {
+        if let title = input.planTitle, !title.isEmpty {
+            plan = try plans.findOrCreatePlan(title: title,
+                                              goal: input.planGoal ?? "",
+                                              anchorDate: input.date)
+            let day = Calendar.current.startOfDay(for: input.date)
+            if day > plan.endDate {
+                plan.endDate = day
+                plan.updatedAt = .now
+            }
+        } else if let existing = try plans.activePlan() {
             plan = existing
             try plans.extendActivePlan(throughDate: input.date)
         } else {
