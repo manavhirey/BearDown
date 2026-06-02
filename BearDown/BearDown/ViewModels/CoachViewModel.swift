@@ -82,6 +82,42 @@ public final class CoachViewModel: ObservableObject {
         messages = visible
         chipCache = Dictionary(uniqueKeysWithValues:
             visible.map { ($0.id, Self.computeChips(from: $0)) })
+        resolveRetroactiveAppliedPlanIds()
+    }
+
+    /// Retroactive proposal chips (synthesized in `computeChips`) lack the repo,
+    /// so they leave `appliedPlanId == nil`. After the chip cache is populated,
+    /// resolve each retroactive chip's `planTitle` via `PlanRepository.plan(title:)`
+    /// so tapping the applied chip can navigate to the still-existing plan.
+    /// Memoized per-title because the same title may appear across messages.
+    private func resolveRetroactiveAppliedPlanIds() {
+        var titleCache: [String: UUID?] = [:]
+        for (mid, chips) in chipCache {
+            chipCache[mid] = chips.map { chip -> CoachChip in
+                guard case .proposal(let p) = chip,
+                      p.isRetroactive,
+                      p.envelope.status == .applied,
+                      p.envelope.appliedPlanId == nil else { return chip }
+                let title = p.envelope.planTitle
+                let resolvedId: UUID?
+                if let cached = titleCache[title] {
+                    resolvedId = cached
+                } else {
+                    resolvedId = (try? env.plans.plan(title: title))?.id
+                    titleCache[title] = resolvedId
+                }
+                guard let resolvedId else { return chip }
+                var newEnv = p.envelope
+                newEnv.appliedPlanId = resolvedId
+                return .proposal(ProposalChip(
+                    id: p.id, messageId: p.messageId, toolUseId: p.toolUseId,
+                    envelope: newEnv,
+                    workoutCount: p.workoutCount,
+                    firstDate: p.firstDate, lastDate: p.lastDate,
+                    isRetroactive: true
+                ))
+            }
+        }
     }
 
     /// Pre-computed tool-call chips for an assistant message. O(1) lookup.

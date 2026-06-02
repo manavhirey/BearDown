@@ -352,6 +352,38 @@ final class CoachViewModelTests: XCTestCase {
         XCTAssertTrue(proposals[1].isRetroactive)
     }
 
+    func test_retro_resolvesAppliedPlanId_whenPlanTitleStillExists() throws {
+        let existing = try env.plans.createPlan(
+            title: "Block X", startDate: .now, endDate: .now.addingTimeInterval(86400))
+        let calls: [[String: Any]] = (1...2).map { i in
+            ["id": "t\(i)", "name": "upsert_workout",
+             "input": ["date": "2026-06-0\(i)", "title": "W\(i)", "summary": "", "blocks": [],
+                       "plan_title": "Block X"]]
+        }
+        try env.chats.append(role: .assistant, text: "",
+            toolCallsJSON: String(data: try JSONSerialization.data(withJSONObject: calls, options: [.sortedKeys]), encoding: .utf8),
+            toolResultsJSON: nil)
+        let vm = CoachViewModel(env: env)
+        vm.refresh()
+        let chip = firstProposal(in: vm)
+        XCTAssertEqual(chip.envelope.appliedPlanId, existing.id)
+    }
+
+    func test_retro_appliedPlanId_isNil_whenPlanTitleNoLongerExists() throws {
+        let calls: [[String: Any]] = (1...2).map { i in
+            ["id": "t\(i)", "name": "upsert_workout",
+             "input": ["date": "2026-06-0\(i)", "title": "W\(i)", "summary": "", "blocks": [],
+                       "plan_title": "Deleted Block"]]
+        }
+        try env.chats.append(role: .assistant, text: "",
+            toolCallsJSON: String(data: try JSONSerialization.data(withJSONObject: calls, options: [.sortedKeys]), encoding: .utf8),
+            toolResultsJSON: nil)
+        let vm = CoachViewModel(env: env)
+        vm.refresh()
+        let chip = firstProposal(in: vm)
+        XCTAssertNil(chip.envelope.appliedPlanId)
+    }
+
     func test_refresh_afterSwitchConversation_loadsTheSwitchedConversation() throws {
         // Seed two conversations directly through env.chats.
         let a = env.chats.currentConversationId()
