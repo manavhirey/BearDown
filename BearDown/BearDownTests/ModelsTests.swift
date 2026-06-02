@@ -60,4 +60,15 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(m.role, .assistant)
         XCTAssertNotNil(m.toolCallsJSON)
     }
+
+    func test_trainingPlan_goalDefaultsToEmptyString() throws {
+        let plan = TrainingPlan(title: "Block 1", startDate: .now, endDate: .now)
+        XCTAssertEqual(plan.goal, "")
+    }
+
+    func test_trainingPlan_goalIsAssignable() throws {
+        let plan = TrainingPlan(title: "Race Prep", startDate: .now, endDate: .now)
+        plan.goal = "3.5mi race goal"
+        XCTAssertEqual(plan.goal, "3.5mi race goal")
+    }
 }

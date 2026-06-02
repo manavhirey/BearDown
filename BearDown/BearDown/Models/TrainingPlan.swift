@@ -5,6 +5,7 @@ import SwiftData
 public final class TrainingPlan {
     @Attribute(.unique) public var id: UUID = UUID()
     public var title: String = ""
+    public var goal: String = ""
     public var startDate: Date = Date()
     public var endDate: Date = Date()
     public var isActive: Bool = false
@@ -18,12 +19,14 @@ public final class TrainingPlan {
     public init(
         id: UUID = UUID(),
         title: String,
+        goal: String = "",
         startDate: Date,
         endDate: Date,
         isActive: Bool = true
     ) {
         self.id = id
         self.title = title
+        self.goal = goal
         self.startDate = startDate
         self.endDate = endDate
         self.isActive = isActive
