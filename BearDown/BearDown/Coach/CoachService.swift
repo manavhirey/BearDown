@@ -134,6 +134,7 @@ public final class CoachService {
             let elapsedDays = cal.dateComponents([.day], from: plan.startDate, to: .now).day ?? 0
             let weekNumber = max(1, min(totalWeeks, (elapsedDays / 7) + 1))
             return TrainingPlanSnapshot(title: plan.title,
+                                        planId: plan.id,
                                         weekNumber: weekNumber,
                                         totalWeeks: totalWeeks,
                                         startDate: plan.startDate,

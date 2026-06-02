@@ -2,14 +2,16 @@ import Foundation
 
 public struct TrainingPlanSnapshot: Equatable {
     public let title: String
+    public let planId: UUID
     public let weekNumber: Int
     public let totalWeeks: Int
     public let startDate: Date
     public let endDate: Date
 
-    public init(title: String, weekNumber: Int, totalWeeks: Int,
+    public init(title: String, planId: UUID, weekNumber: Int, totalWeeks: Int,
                 startDate: Date, endDate: Date) {
         self.title = title
+        self.planId = planId
         self.weekNumber = weekNumber
         self.totalWeeks = totalWeeks
         self.startDate = startDate
@@ -237,7 +239,7 @@ End with: "Run me your most recent week of lift weights and any cardio data, and
         lines.append("<context>")
         lines.append("Today: \(iso(today)) (\(weekdayName(today)))")
         if let plan {
-            lines.append(#"Active plan: "\#(plan.title)" — Week \#(plan.weekNumber) of \#(plan.totalWeeks), started \#(iso(plan.startDate)), ends \#(iso(plan.endDate))."#)
+            lines.append(#"Active plan: "\#(plan.title)" (id=\#(plan.planId.uuidString)) — Week \#(plan.weekNumber) of \#(plan.totalWeeks), started \#(iso(plan.startDate)), ends \#(iso(plan.endDate))."#)
         } else {
             lines.append("No active plan yet.")
         }

@@ -3,7 +3,8 @@ import XCTest
 
 final class CoachPromptTests: XCTestCase {
     func test_assembled_includesAllThreeLayers() {
-        let plan = TrainingPlanSnapshot(title: "Block 1", weekNumber: 2, totalWeeks: 4,
+        let plan = TrainingPlanSnapshot(title: "Block 1", planId: UUID(),
+                                        weekNumber: 2, totalWeeks: 4,
                                         startDate: dateFromIso("2026-05-17"),
                                         endDate: dateFromIso("2026-06-13"))
         let history = [
@@ -37,6 +38,20 @@ final class CoachPromptTests: XCTestCase {
                       "tool addendum must instruct the model when to use plan_title")
         XCTAssertTrue(CoachPrompt.toolAddendum.contains("new training block"),
                       "tool addendum must frame plan_title as a new-block signal")
+    }
+
+    func test_context_includesActivePlanId() {
+        let pid = UUID(uuidString: "4DC1F70E-7B16-4F8E-A41C-71BC2A3DF812")!
+        let snap = TrainingPlanSnapshot(
+            title: "Race Prep — June 24",
+            planId: pid,
+            weekNumber: 2, totalWeeks: 4,
+            startDate: Date(timeIntervalSince1970: 1_780_000_000),
+            endDate: Date(timeIntervalSince1970: 1_782_500_000)
+        )
+        let ctx = CoachPrompt.context(today: .now, plan: snap, history: [])
+        XCTAssertTrue(ctx.contains("id=\(pid.uuidString)"),
+                      "context must include active plan id; got: \(ctx)")
     }
 
     private func dateFromIso(_ s: String) -> Date {
