@@ -1,16 +1,21 @@
 import SwiftUI
 
+public enum CoachRoute: Hashable {
+    case history
+}
+
 public struct CoachView: View {
     @StateObject private var vm: CoachViewModel
     @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var nav: AppNavigation
+    @State private var path = NavigationPath()
 
     public init(env: AppEnvironment) {
         _vm = StateObject(wrappedValue: CoachViewModel(env: env))
     }
 
     public var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             VStack(spacing: 0) {
                 messagesScroll
                 if case let .error(msg) = vm.state {
@@ -23,6 +28,18 @@ public struct CoachView: View {
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        path.append(CoachRoute.history)
+                    } label: {
+                        Text("HISTORY")
+                            .font(BDStyle.monoTiny)
+                            .tracking(BDStyle.trackingWide)
+                            .foregroundStyle(.primary)
+                    }
+                    .disabled(vm.state == .streaming)
+                    .accessibilityLabel("Chat history")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         vm.newChat()
@@ -33,6 +50,12 @@ public struct CoachView: View {
                             .foregroundStyle(.primary)
                     }
                     .accessibilityLabel("New chat")
+                }
+            }
+            .navigationDestination(for: CoachRoute.self) { route in
+                switch route {
+                case .history:
+                    ChatHistoryView(env: env)
                 }
             }
             .animation(.easeInOut(duration: 0.18), value: vm.state)
