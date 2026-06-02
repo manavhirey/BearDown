@@ -42,4 +42,89 @@ final class ChatRepositoryTests: XCTestCase {
         let msgs = try repo.messages(in: cid)
         XCTAssertEqual(msgs.map(\.text), ["1", "2", "3"])
     }
+
+    // MARK: - conversations()
+
+    func test_conversations_returnsEmptyWhenNoMessages() throws {
+        let summaries = try repo.conversations()
+        XCTAssertEqual(summaries, [])
+    }
+
+    func test_conversations_groupsByConversationId_sortedByLastMessageDesc() throws {
+        // Conversation A: oldest
+        let a = repo.currentConversationId()
+        try repo.append(role: .user, text: "A1", toolCallsJSON: nil, toolResultsJSON: nil)
+        try repo.append(role: .assistant, text: "A2", toolCallsJSON: nil, toolResultsJSON: nil)
+        // Archive -> new id minted on next currentConversationId()
+        repo.archiveCurrentConversation()
+        let b = repo.currentConversationId()
+        try repo.append(role: .user, text: "B1", toolCallsJSON: nil, toolResultsJSON: nil)
+
+        let summaries = try repo.conversations()
+        XCTAssertEqual(summaries.count, 2)
+        XCTAssertEqual(summaries[0].id, b, "most-recent conversation should be first")
+        XCTAssertEqual(summaries[1].id, a)
+    }
+
+    func test_conversations_filtersOutEmptyConversations() throws {
+        // Conversation X: only a protocol row (role=.user, text="")
+        let x = repo.currentConversationId()
+        try repo.append(role: .user, text: "", toolCallsJSON: nil, toolResultsJSON: nil)
+        repo.archiveCurrentConversation()
+        // Conversation Y: a real user message
+        _ = repo.currentConversationId()
+        try repo.append(role: .user, text: "hello", toolCallsJSON: nil, toolResultsJSON: nil)
+
+        let summaries = try repo.conversations()
+        XCTAssertEqual(summaries.count, 1)
+        XCTAssertNotEqual(summaries[0].id, x, "empty conversation should be filtered out")
+    }
+
+    func test_conversations_titleIsFirstNonEmptyUserMessage() throws {
+        _ = repo.currentConversationId()
+        try repo.append(role: .user, text: "", toolCallsJSON: nil, toolResultsJSON: nil)         // skipped
+        try repo.append(role: .user, text: "first real", toolCallsJSON: nil, toolResultsJSON: nil)
+        try repo.append(role: .assistant, text: "reply", toolCallsJSON: nil, toolResultsJSON: nil)
+        try repo.append(role: .user, text: "second real", toolCallsJSON: nil, toolResultsJSON: nil)
+
+        let summaries = try repo.conversations()
+        XCTAssertEqual(summaries.count, 1)
+        XCTAssertEqual(summaries[0].title, "first real")
+    }
+
+    func test_conversations_titleFallsBackToNewConversationWhenNoUserText() throws {
+        _ = repo.currentConversationId()
+        try repo.append(role: .assistant, text: "hi there", toolCallsJSON: nil, toolResultsJSON: nil)
+        try repo.append(role: .assistant, text: "still here", toolCallsJSON: nil, toolResultsJSON: nil)
+
+        let summaries = try repo.conversations()
+        XCTAssertEqual(summaries.count, 1)
+        XCTAssertEqual(summaries[0].title, "New conversation")
+    }
+
+    func test_conversations_messageCountExcludesProtocolRows() throws {
+        _ = repo.currentConversationId()
+        try repo.append(role: .user, text: "q1", toolCallsJSON: nil, toolResultsJSON: nil)
+        try repo.append(role: .assistant, text: "a1", toolCallsJSON: nil, toolResultsJSON: nil)
+        try repo.append(role: .user, text: "", toolCallsJSON: nil, toolResultsJSON: nil) // protocol row
+        try repo.append(role: .assistant, text: "a2", toolCallsJSON: nil, toolResultsJSON: nil)
+
+        let summaries = try repo.conversations()
+        XCTAssertEqual(summaries.count, 1)
+        XCTAssertEqual(summaries[0].messageCount, 3, "excludes the empty-text user (protocol) row")
+    }
+
+    func test_conversations_isCurrentFlagsTheCurrentConversation() throws {
+        let a = repo.currentConversationId()
+        try repo.append(role: .user, text: "A1", toolCallsJSON: nil, toolResultsJSON: nil)
+        repo.archiveCurrentConversation()
+        let b = repo.currentConversationId()
+        try repo.append(role: .user, text: "B1", toolCallsJSON: nil, toolResultsJSON: nil)
+
+        let summaries = try repo.conversations()
+        let summaryA = summaries.first(where: { $0.id == a })!
+        let summaryB = summaries.first(where: { $0.id == b })!
+        XCTAssertTrue(summaryB.isCurrent)
+        XCTAssertFalse(summaryA.isCurrent)
+    }
 }
