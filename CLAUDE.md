@@ -4,7 +4,7 @@ Notes for future Claude sessions on this iOS app. Skim before making changes.
 
 ## What this is
 
-Native iOS 17+ SwiftUI app. A hardcoded coaching agent (Anthropic Claude Sonnet 4.6, with the user's verbatim "Hybrid Athlete Coach" prompt) generates 4-week training blocks via tool calls. The app persists workouts to SwiftData with CloudKit sync, renders them as a single-day Today view and a full plan view, and lets the user mark each workout completed or failed. Per-workout local notifications.
+Native iOS 17+ SwiftUI app. A hardcoded coaching agent (Anthropic Claude Sonnet 4.6, with the user's verbatim "Hybrid Athlete Coach" prompt) generates 4-week training blocks via tool calls, with multi-plan support: any number of named plans, one active at a time, switched via Coach chips or the Plans tab. The app persists workouts to SwiftData with CloudKit sync, renders them as a single-day Today view and a list+detail Plans tab, and lets the user mark each workout completed or failed. Per-workout local notifications.
 
 Full design rationale: `docs/superpowers/specs/2026-05-31-beardown-design.md`. Original implementation plan: `docs/superpowers/plans/2026-05-31-beardown.md`. Manual test checklist: `docs/manual-tests.md`.
 
@@ -159,6 +159,8 @@ Then long-press the SecureField → Paste.
 
 The coach exposes three tools: `upsert_workout`, `delete_workout`, `get_recent_history`. There is intentionally no `create_plan` tool. `WorkoutRepository.upsert` auto-creates a "Current Block" plan if none exists, so the agent's first `upsert_workout` call doesn't bounce off `RepositoryError.noActivePlan`. If you add a tool that mutates the plan in any way, mirror this pattern — don't expose plan creation as a separate agent step. Caught during fresh-install smoke test (commit `fbe8cf0`).
 
+**As of 2026-06-02 (multi-plan):** the agent can influence plan creation by setting `plan_title` on `upsert_workout`. `WorkoutRepository.upsert` resolves through `PlanRepository.findOrCreatePlan`, which creates the named plan as inactive — the user activates it via the Switch to plan chip. There is still no `create_plan` tool; the auto-create path remains the fallback for writes without `plan_title`.
+
 ### 9. View models that pass `Sendable` callbacks to async work need optimistic UI
 
 `CoachViewModel.send` calls into the async `CoachService.send` which doesn't return until the entire stream completes. `vm.messages` is only refreshed after that returns. Without an optimistic append in `send`, the user types a message, taps send, and sees nothing change until the agent finishes responding several seconds later. **Always optimistically append the user message before kicking off the async call.** Pattern in `CoachViewModel.send` (commit `111b220`).
@@ -189,12 +191,23 @@ All child views in this project (`TodayView`, `PlanView`, `CoachView`, `Settings
 
 If a view's `body` needs to differentiate states (e.g. "no plan yet" vs "loading from iCloud"), expose the distinction as `@Published` state on the ViewModel and let `refresh()` compute it. Doing `(try? env.plans.activePlan()) == nil` directly in `body` runs a SwiftData fetch on every render. Pattern: `PlanViewModel.hasPlan` flag set in `refresh()`. Fixed in commit `57b467a`.
 
+### 12. `PlanDetailView` takes a `TrainingPlan`, not an `AppEnvironment`
+
+Unlike the other top-level views (`TodayView`, `PlansListView`, `CoachView`, `SettingsView`), `PlanDetailView` constructs its VM with a plan instance:
+
+```swift
+PlanDetailView(plan: plan)
+```
+
+The parent `PlansListView` provides the plan via the `NavigationStack`'s typed path (`PlansRoute.detail(planId:)`). Don't refactor `PlanDetailView` back to an env-based init — the whole point of the rename was so it could be reused for any plan regardless of active state.
+
 ## Architecture pointers
 
 - **Repositories are the only layer touching `ModelContext`.** Views and view models go through `PlanRepository`, `WorkoutRepository`, `ChatRepository`. Don't add `@Query` in views; query through repos.
 - **`CoachService` is the agent turn loop.** Streams events from `AnthropicClient`, accumulates text + tool calls, dispatches tools, persists chat messages with raw tool JSON for replay. Capped at 10 tool iterations per user turn.
 - **`CoachPrompt` is layered:** verbatim coaching persona (Appendix A of the design spec) + app-owned tool addendum + per-turn context block (today's date, active plan snapshot, 14-day history). The persona must never be paraphrased or normalized — it's the user's domain.
 - **`NotificationScheduler` is an actor.** Repository methods stay sync and fire fire-and-forget `Task { await scheduler.... }` to schedule/cancel. Brief race window between save and schedule; acceptable for v1.
+- **`WorkoutRepository.recentHistory(days:)` is scoped to the active plan.** Archived plans don't leak into the Coach's view. Returns empty if there is no active plan.
 - **`AppNavigation`** is the cross-tab navigation observable (selected tab + `focusedDate` for chip-tap navigation from Coach to Today).
 - **ViewModels load data via `.onAppear`, not from `init()`.** Each `*ViewModel.init` is intentionally cheap — no repo calls, no `refresh()`. The owning view triggers the first load via `.onAppear { vm.refresh() }` (also runs on tab-switch returns). Don't reintroduce `refresh()` calls into VM inits — they'd double-fetch on every first appearance. Established in commit `947a16b`.
 - **`CoachViewModel.chips(for:)` is the entry point for tool-call chip rendering.** Chips are pre-computed during `refresh()` and cached in `chipCache: [UUID: [ChatBubble.ToolChip]]`. The view does O(1) lookup. If you add a new agent tool, update `CoachViewModel.computeChips(from:)` (not the view) to format its chip.
@@ -226,7 +239,8 @@ All paths below are from the repo root. The `BearDown/BearDown/...` prefix refle
 | Adjust the coaching persona | `BearDown/BearDown/Coach/CoachPrompt.swift` `coachingPersona` constant (verbatim from spec Appendix A) |
 | Adjust streaming/turn-loop behavior | `BearDown/BearDown/Coach/CoachService.swift` |
 | Change notification scheduling | `BearDown/BearDown/Notifications/NotificationScheduler.swift` + repository hooks in `BearDown/BearDown/Persistence/WorkoutRepository.swift` |
-| Add a tab or change navigation | `BearDown/BearDown/Views/Shared/RootView.swift` + `BearDown/BearDown/App/AppNavigation.swift` |
+| Add a tab, change navigation, or push a plan detail from elsewhere | `BearDown/BearDown/Views/Shared/RootView.swift`, `BearDown/BearDown/App/AppNavigation.swift` (`focusedDate`, `pendingPlanDetail`), `BearDown/BearDown/Views/Plan/PlansListView.swift` (`PlansRoute`) |
+| Add a new operation on plans (rename, archive without delete, etc.) | `BearDown/BearDown/Persistence/PlanRepository.swift`, expose to UI via `PlansListViewModel`/`PlanDetailViewModel` |
 | Run UI tests reliably | Open the project in Xcode and use ⌘U; `xcodebuild test -only-testing:BearDownUITests` is flaky |
 
 ## Style preferences
@@ -241,7 +255,7 @@ All paths below are from the repo root. The `BearDown/BearDown/...` prefix refle
 
 These came out of the post-build review and are tracked for a future polish pass:
 
-- Replace `AppNavigation.selectedTab: Int` with a typed `Tab` enum (eliminates magic numbers in `TodayView`, `CoachView`, `RootView`).
+- Replace `AppNavigation.selectedTab: Int` with a typed `Tab` enum (eliminates magic numbers in `TodayView`, `PlansListView`, `CoachView`, `RootView`).
 - Add VoiceOver text labels to icon-only buttons (notably the Coach send button at `CoachView.swift:66`).
 - Extract `FakeAnthropicClient`, `ScriptedAnthropicClient`, and `dateFromIso` into `BearDownTests/TestSupport.swift` — currently scattered across three test files.
 - Optionally migrate `EnumsTests.swift` to Swift Testing as a parameterized test (`@Test(arguments:)`). Per the `swift-testing-expert` review: do this opportunistically, not as a sweep. Keep SwiftData-heavy suites on XCTest.

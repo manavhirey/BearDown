@@ -54,3 +54,19 @@ Run these on a real device before each TestFlight build. The XCUITest suite cove
 - [ ] Replace key with an invalid one mid-session; next Coach send shows "Anthropic API error (HTTP …)"
 - [ ] Force quit and relaunch: chat history and plans persist
 - [ ] App-launch reconciliation: notifications for completed/deleted workouts get cleaned up
+
+## Multi-Plan
+
+1. **Implicit plan creation via Coach.** Ask the Coach in plain English: *"Build me a race prep block for a 3.5mi race on June 24."* Confirm the assistant emits multiple `upsert_workout` calls and a single SWITCH TO chip appears in the chat (dedup'd across the burst of workouts). The chip background is filled black/white; the text reads `SWITCH TO: <PLAN TITLE>`.
+
+2. **Switch chip activates and navigates.** Tap the SWITCH TO chip. Verify: (a) the Plans tab becomes selected, (b) the new plan's detail screen is pushed, (c) the ACTIVE pill is showing on the new plan.
+
+3. **Plans list shows both plans, active first.** Pop back to the Plans tab root. The list shows the new active plan on top and the formerly-active plan below it (without the ACTIVE pill). Each card shows date range, optional goal, and a `NN / NN` completion ratio.
+
+4. **Make active from detail.** Tap the archived plan. Confirm MAKE ACTIVE + DELETE buttons are in the bottom bar. Tap MAKE ACTIVE. The ACTIVE pill flips on; MAKE ACTIVE disappears. The other plan, when revisited, no longer shows the pill.
+
+5. **Delete with confirmation.** From any plan, tap DELETE. A destructive alert appears. The message text mentions "your active plan" when applicable, otherwise "All workouts in this plan will be removed." Confirm DELETE — the detail pops back to the list and the card is gone.
+
+6. **Notifications cancelled on delete.** Before deleting a plan with scheduled workouts, open iOS Settings → Notifications → BearDown to inspect pending notifications. After delete, confirm pending notifications for the removed workouts are no longer scheduled.
+
+7. **Empty state after deleting all plans.** Delete the only remaining plan. The Plans tab shows "Build your block." with an ASK COACH CTA. Today shows the rest-day empty state. Type a Coach message asking for a new plan and confirm the auto-create path puts you back at one plan called "Current Block" (no `plan_title` set).
