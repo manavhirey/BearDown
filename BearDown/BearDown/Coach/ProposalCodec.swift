@@ -171,3 +171,97 @@ public enum ProposalCodec {
         return f.date(from: s)
     }
 }
+
+extension ProposalCodec {
+    /// Thrown by `normalizeWorkouts`. `.message` is a user-readable, agent-facing
+    /// description suitable for echoing back as a tool error result.
+    public enum NormalizeError: Error, Equatable {
+        case invalidDate
+        case missingTitle
+        case invalidBlockKind(blockIndex: Int)
+        case missingExerciseFields(blockIndex: Int, exerciseIndex: Int)
+        case missingCardioModality(blockIndex: Int)
+
+        public var message: String {
+            switch self {
+            case .invalidDate:
+                return "Invalid or missing `date` (expected YYYY-MM-DD)."
+            case .missingTitle:
+                return "`title` is required."
+            case .invalidBlockKind(let i):
+                return "Block \(i): invalid `kind` (expected strength|cardio|mobility)."
+            case .missingExerciseFields(let i, let j):
+                return "Block \(i) exercise \(j): missing name/sets/reps."
+            case .missingCardioModality(let i):
+                return "Block \(i) cardio: missing `modality`."
+            }
+        }
+    }
+
+    /// Validate and normalize a workouts array (same gauntlet as
+    /// `CoachTools.handleUpsert` used to apply inline). Returns a `[[String: Any]]`
+    /// ready to serialize into the envelope's `workouts` field.
+    public static func normalizeWorkouts(_ raw: [[String: Any]]) throws -> [[String: Any]] {
+        try raw.map(normalizeWorkoutItem)
+    }
+
+    /// Validate and normalize a single workout dict.
+    public static func normalizeWorkoutItem(_ raw: [String: Any]) throws -> [String: Any] {
+        guard let dateStr = raw["date"] as? String,
+              parseDate(dateStr) != nil else {
+            throw NormalizeError.invalidDate
+        }
+        let title = (raw["title"] as? String) ?? ""
+        guard !title.isEmpty else { throw NormalizeError.missingTitle }
+        let summary = (raw["summary"] as? String) ?? ""
+        let rawBlocks = (raw["blocks"] as? [[String: Any]]) ?? []
+        var normalizedBlocks: [[String: Any]] = []
+        for (i, b) in rawBlocks.enumerated() {
+            guard let kindRaw = b["kind"] as? String,
+                  BlockKind(rawValue: kindRaw) != nil else {
+                throw NormalizeError.invalidBlockKind(blockIndex: i)
+            }
+            var nb: [String: Any] = [
+                "order": (b["order"] as? Int) ?? i,
+                "kind": kindRaw,
+                "title": (b["title"] as? String) ?? "",
+                "notes": (b["notes"] as? String) ?? "",
+            ]
+            if let exs = b["exercises"] as? [[String: Any]] {
+                var normalizedEx: [[String: Any]] = []
+                for (j, e) in exs.enumerated() {
+                    guard let name = e["name"] as? String, !name.isEmpty,
+                          let sets = e["sets"] as? Int,
+                          let reps = e["reps"] as? String else {
+                        throw NormalizeError.missingExerciseFields(blockIndex: i, exerciseIndex: j)
+                    }
+                    var ne: [String: Any] = [
+                        "order": (e["order"] as? Int) ?? j,
+                        "name": name, "sets": sets, "reps": reps,
+                    ]
+                    if let l = e["load"] as? String { ne["load"] = l }
+                    if let r = e["rest_seconds"] as? Int { ne["rest_seconds"] = r }
+                    normalizedEx.append(ne)
+                }
+                if !normalizedEx.isEmpty { nb["exercises"] = normalizedEx }
+            }
+            if let c = b["cardio"] as? [String: Any] {
+                guard let modality = c["modality"] as? String, !modality.isEmpty else {
+                    throw NormalizeError.missingCardioModality(blockIndex: i)
+                }
+                var nc: [String: Any] = ["modality": modality]
+                if let m = c["duration_minutes"] as? Int { nc["duration_minutes"] = m }
+                if let d = c["distance_meters"] as? Double { nc["distance_meters"] = d }
+                if let t = c["target"] as? String { nc["target"] = t }
+                nb["cardio"] = nc
+            }
+            normalizedBlocks.append(nb)
+        }
+        return [
+            "date": dateStr,
+            "title": title,
+            "summary": summary,
+            "blocks": normalizedBlocks,
+        ]
+    }
+}

@@ -80,6 +80,73 @@ final class ProposalCodecTests: XCTestCase {
         XCTAssertNil(ProposalCodec.decode(contentString: raw))
     }
 
+    func test_normalizeWorkouts_acceptsValidArray() throws {
+        let raw: [[String: Any]] = [[
+            "date": "2026-06-08", "title": "Push", "summary": "OHP",
+            "blocks": [[
+                "order": 0, "kind": "strength", "title": "Main", "notes": "",
+                "exercises": [["order": 0, "name": "OHP", "sets": 5, "reps": "5"]]
+            ]]
+        ]]
+        let normalized = try ProposalCodec.normalizeWorkouts(raw)
+        XCTAssertEqual(normalized.count, 1)
+        XCTAssertEqual((normalized[0]["title"] as? String), "Push")
+        XCTAssertEqual(((normalized[0]["blocks"] as? [[String: Any]])?.first?["kind"] as? String), "strength")
+    }
+
+    func test_normalizeWorkouts_throwsOnInvalidBlockKind() {
+        let raw: [[String: Any]] = [[
+            "date": "2026-06-08", "title": "x", "summary": "",
+            "blocks": [["order": 0, "kind": "yoga-thing", "title": "", "notes": ""]]
+        ]]
+        XCTAssertThrowsError(try ProposalCodec.normalizeWorkouts(raw)) { err in
+            guard case ProposalCodec.NormalizeError.invalidBlockKind(let i) = err else {
+                XCTFail("wrong error: \(err)"); return
+            }
+            XCTAssertEqual(i, 0)
+        }
+    }
+
+    func test_normalizeWorkouts_throwsOnUnparseableDate() {
+        let raw: [[String: Any]] = [["date": "not-a-date", "title": "x", "summary": "", "blocks": []]]
+        XCTAssertThrowsError(try ProposalCodec.normalizeWorkouts(raw)) { err in
+            guard case ProposalCodec.NormalizeError.invalidDate = err else {
+                XCTFail("wrong error: \(err)"); return
+            }
+        }
+    }
+
+    func test_normalizeWorkouts_throwsOnMissingTitle() {
+        let raw: [[String: Any]] = [["date": "2026-06-08", "title": "", "summary": "", "blocks": []]]
+        XCTAssertThrowsError(try ProposalCodec.normalizeWorkouts(raw)) { err in
+            guard case ProposalCodec.NormalizeError.missingTitle = err else {
+                XCTFail("wrong error: \(err)"); return
+            }
+        }
+    }
+
+    func test_normalizeWorkouts_throwsOnMissingExerciseField() {
+        let raw: [[String: Any]] = [[
+            "date": "2026-06-08", "title": "x", "summary": "",
+            "blocks": [[
+                "order": 0, "kind": "strength", "title": "", "notes": "",
+                "exercises": [["order": 0, "name": "Bench"]]  // missing sets/reps
+            ]]
+        ]]
+        XCTAssertThrowsError(try ProposalCodec.normalizeWorkouts(raw))
+    }
+
+    func test_normalizeWorkouts_throwsOnMissingCardioModality() {
+        let raw: [[String: Any]] = [[
+            "date": "2026-06-08", "title": "x", "summary": "",
+            "blocks": [[
+                "order": 0, "kind": "cardio", "title": "", "notes": "",
+                "cardio": ["duration_minutes": 20]
+            ]]
+        ]]
+        XCTAssertThrowsError(try ProposalCodec.normalizeWorkouts(raw))
+    }
+
     private func dateFromIso(_ s: String) -> Date {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withFullDate]
