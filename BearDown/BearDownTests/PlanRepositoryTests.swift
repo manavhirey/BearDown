@@ -175,4 +175,19 @@ final class PlanRepositoryTests: XCTestCase {
         XCTAssertEqual(again.id, first.id)
         XCTAssertEqual(again.goal, "original goal")
     }
+
+    func test_planByTitle_returnsMatch_caseInsensitive() throws {
+        _ = try repo.createPlan(title: "Race Prep — June 24",
+                                startDate: .now, endDate: .now.addingTimeInterval(86400))
+        let found = try repo.plan(title: "RACE PREP — JUNE 24")
+        XCTAssertNotNil(found)
+        XCTAssertEqual(found?.title, "Race Prep — June 24")
+    }
+
+    func test_planByTitle_returnsNil_whenNoMatch() throws {
+        _ = try repo.createPlan(title: "Block A",
+                                startDate: .now, endDate: .now.addingTimeInterval(86400))
+        let found = try repo.plan(title: "Some Other Plan")
+        XCTAssertNil(found)
+    }
 }

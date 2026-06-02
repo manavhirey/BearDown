@@ -77,6 +77,12 @@ public final class PlanRepository {
         return try context.fetch(descriptor).first
     }
 
+    public func plan(title: String) throws -> TrainingPlan? {
+        let normalized = title.lowercased()
+        let rows = try context.fetch(FetchDescriptor<TrainingPlan>())
+        return rows.first(where: { $0.title.lowercased() == normalized })
+    }
+
     public func findOrCreatePlan(title: String, goal: String, anchorDate: Date) throws -> TrainingPlan {
         let normalized = title.lowercased()
         let rows = try context.fetch(FetchDescriptor<TrainingPlan>())
