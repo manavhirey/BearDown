@@ -234,6 +234,30 @@ final class CoachViewModelTests: XCTestCase {
         return f.date(from: s)!
     }
 
+    func test_proposalChipView_buildsForAllThreeStates() {
+        // Pure type-check / construction smoke — we don't render here.
+        let env = ProposalEnvelope(mode: .add, status: .pending,
+                                   planTitle: "X", planGoal: "",
+                                   planId: nil, appliedPlanId: nil, appliedAt: nil, appliedMode: nil,
+                                   workouts: [.init(date: .now, title: "x", summary: "", blocks: [])])
+        let chip = ProposalChip(id: "1", messageId: UUID(), toolUseId: "t",
+                                envelope: env, workoutCount: 1,
+                                firstDate: .now, lastDate: .now)
+        _ = ProposalChipView(chip: chip, onApply: { _, _ in }, onDismiss: { _ in })
+        var applied = env; applied.status = .applied; applied.appliedMode = .switchPlan
+        _ = ProposalChipView(
+            chip: ProposalChip(id: "2", messageId: UUID(), toolUseId: "t",
+                               envelope: applied, workoutCount: 1,
+                               firstDate: .now, lastDate: .now),
+            onApply: { _, _ in }, onDismiss: { _ in })
+        var dismissed = env; dismissed.status = .dismissed
+        _ = ProposalChipView(
+            chip: ProposalChip(id: "3", messageId: UUID(), toolUseId: "t",
+                               envelope: dismissed, workoutCount: 1,
+                               firstDate: .now, lastDate: .now),
+            onApply: { _, _ in }, onDismiss: { _ in })
+    }
+
     func test_refresh_afterSwitchConversation_loadsTheSwitchedConversation() throws {
         // Seed two conversations directly through env.chats.
         let a = env.chats.currentConversationId()

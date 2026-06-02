@@ -5,6 +5,9 @@ public struct ChatBubble: View {
     public let text: String
     public let toolChips: [CoachChip]
     public let onChipTap: (ChatBubble.ToolChip) -> Void
+    public let onApplyProposal: (ProposalChip, ProposalApplyMode) -> Void
+    public let onDismissProposal: (ProposalChip) -> Void
+    public let onProposalAppliedTap: (ProposalChip) -> Void
 
     public struct ToolChip: Identifiable, Equatable {
         public let id: String
@@ -26,11 +29,17 @@ public struct ChatBubble: View {
     public init(role: ChatRole,
                 text: String,
                 toolChips: [CoachChip] = [],
-                onChipTap: @escaping (ChatBubble.ToolChip) -> Void = { _ in }) {
+                onChipTap: @escaping (ChatBubble.ToolChip) -> Void = { _ in },
+                onApplyProposal: @escaping (ProposalChip, ProposalApplyMode) -> Void = { _, _ in },
+                onDismissProposal: @escaping (ProposalChip) -> Void = { _ in },
+                onProposalAppliedTap: @escaping (ProposalChip) -> Void = { _ in }) {
         self.role = role
         self.text = text
         self.toolChips = toolChips
         self.onChipTap = onChipTap
+        self.onApplyProposal = onApplyProposal
+        self.onDismissProposal = onDismissProposal
+        self.onProposalAppliedTap = onProposalAppliedTap
     }
 
     public var body: some View {
@@ -103,9 +112,11 @@ public struct ChatBubble: View {
                     Button { onChipTap(c) } label: { workoutChip(c) }
                         .buttonStyle(.plain)
                         .accessibilityLabel(c.label)
-                case .proposal:
-                    // Placeholder — real renderer arrives in Task 15.
-                    EmptyView()
+                case .proposal(let p):
+                    ProposalChipView(chip: p,
+                                     onApply: onApplyProposal,
+                                     onDismiss: onDismissProposal,
+                                     onAppliedTap: onProposalAppliedTap)
                 }
             }
         }
