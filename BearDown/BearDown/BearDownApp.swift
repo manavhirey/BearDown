@@ -110,6 +110,58 @@ struct BearDownApp: App {
                 _ = chats.currentConversationId()
             }
         }
+
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-seed-pending-proposal") {
+            Task { @MainActor in
+                // Provide a baseline active plan so the Plans tab isn't empty.
+                if (try? environment.plans.activePlan()) == nil {
+                    _ = try? environment.plans.createPlan(
+                        title: "Current Block",
+                        startDate: .now, endDate: .now.addingTimeInterval(7 * 86400)
+                    )
+                }
+                // Tests in the same xcodebuild invocation share the on-disk store.
+                // Remove any "Seeded Proposal Plan" left over from a prior test in
+                // this run so each test sees a deterministic baseline.
+                if let stale = try? environment.plans.plan(title: "Seeded Proposal Plan") {
+                    try? environment.plans.delete(planId: stale.id)
+                }
+                // Wipe any chat rows persisted from a prior test in the same
+                // xcodebuild invocation, then mint a fresh conversationId so the
+                // seeded assistant message is the only one in the current
+                // conversation when CoachView refreshes.
+                if let prior = try? environment.chats.conversations() {
+                    for c in prior { try? environment.chats.deleteConversation(id: c.id) }
+                }
+                environment.chats.archiveCurrentConversation()
+                // Build a pending add-mode envelope by hand.
+                let envelopeJSON: String = {
+                    let obj: [String: Any] = [
+                        "schema": "bd.proposal/v1",
+                        "mode": "add",
+                        "status": "pending",
+                        "plan_title": "Seeded Proposal Plan",
+                        "plan_goal": "Goal text",
+                        "workouts": [
+                            ["date": "2026-07-01", "title": "W1", "summary": "Compound-led", "blocks": []],
+                            ["date": "2026-07-02", "title": "W2", "summary": "Easy run", "blocks": []],
+                        ],
+                    ]
+                    let data = try! JSONSerialization.data(withJSONObject: obj, options: [.sortedKeys])
+                    return String(data: data, encoding: .utf8)!
+                }()
+                let toolUseId = "toolu_seed"
+                let calls: [[String: Any]] = [["type": "tool_use", "id": toolUseId,
+                                               "name": "propose_plan", "input": [:]]]
+                let results: [[String: Any]] = [["type": "tool_result", "tool_use_id": toolUseId,
+                                                 "content": envelopeJSON, "is_error": false]]
+                let callsJSON = String(data: try! JSONSerialization.data(withJSONObject: calls, options: [.sortedKeys]), encoding: .utf8)!
+                let resultsJSON = String(data: try! JSONSerialization.data(withJSONObject: results, options: [.sortedKeys]), encoding: .utf8)!
+                try? environment.chats.append(role: .assistant,
+                    text: "Here's a proposed plan.",
+                    toolCallsJSON: callsJSON, toolResultsJSON: resultsJSON)
+            }
+        }
     }
 
     var body: some Scene {
