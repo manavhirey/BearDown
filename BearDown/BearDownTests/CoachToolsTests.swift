@@ -75,6 +75,36 @@ final class CoachToolsTests: XCTestCase {
         XCTAssertTrue(r.isError)
     }
 
+    func test_handleUpsert_withPlanTitle_includesPlanIdInResultString() throws {
+        let input: [String: Any] = [
+            "date": "2026-06-08",
+            "title": "Easy run",
+            "summary": "30 min",
+            "blocks": [],
+            "plan_title": "Race Prep — June 24",
+            "plan_goal":  "3.5mi race goal pacing block",
+        ]
+        let result = try tools.dispatch(name: "upsert_workout", input: input)
+        XCTAssertFalse(result.isError)
+        XCTAssertTrue(result.content.contains("plan_id="),
+                      "result must carry plan_id marker, got: \(result.content)")
+        XCTAssertTrue(result.content.contains("Race Prep — June 24"),
+                      "result must carry plan title, got: \(result.content)")
+    }
+
+    func test_handleUpsert_withoutPlanTitle_resultStringHasNoPlanIdMarker() throws {
+        let input: [String: Any] = [
+            "date": "2026-06-08",
+            "title": "Easy run",
+            "summary": "30 min",
+            "blocks": [],
+        ]
+        let result = try tools.dispatch(name: "upsert_workout", input: input)
+        XCTAssertFalse(result.isError)
+        XCTAssertFalse(result.content.contains("plan_id="),
+                       "active-plan write must not carry plan_id marker")
+    }
+
     private func dateFromIso(_ s: String) -> Date {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withFullDate]

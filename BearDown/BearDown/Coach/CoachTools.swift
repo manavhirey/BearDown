@@ -68,7 +68,15 @@ public final class CoachTools {
                                     ]
                                 ]
                             ]
-                        ]
+                        ],
+                        "plan_title": [
+                            "type": "string",
+                            "description": "Optional. Attach this workout to a named training plan. If the plan doesn't exist, it's created in an inactive state — the user will activate it via the Switch to plan chip. Reuse the same plan_title across every workout you write for one block."
+                        ],
+                        "plan_goal": [
+                            "type": "string",
+                            "description": "Optional. One-line goal for the plan (e.g. 'Race prep — 3.5mi June 24'). Only applied when creating the plan; ignored on subsequent writes to the same plan_title."
+                        ],
                     ]
                   ]),
             .init(name: "delete_workout",
@@ -153,11 +161,29 @@ public final class CoachTools {
             parsedBlocks.append(.init(order: order, kind: kind, title: blockTitle, notes: notes,
                                       exercises: exercises, cardio: cardio))
         }
-        let workoutInput = WorkoutInput(date: date, title: title, summary: summary, blocks: parsedBlocks)
+        let planTitle = (input["plan_title"] as? String).flatMap {
+            $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0
+        }
+        let planGoal = (input["plan_goal"] as? String).flatMap {
+            $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0
+        }
+
+        let workoutInput = WorkoutInput(
+            date: date, title: title, summary: summary, blocks: parsedBlocks,
+            planTitle: planTitle, planGoal: planGoal
+        )
         do {
             let w = try workouts.upsert(workoutInput)
-            return ToolResult(content: "Scheduled \(title) for \(dateStr) (workout \(w.id.uuidString.prefix(8))).",
-                              isError: false)
+            if let planTitle, let plan = w.plan {
+                return ToolResult(
+                    content: "Scheduled \"\(title)\" for \(dateStr) in plan \"\(planTitle)\" (plan_id=\(plan.id.uuidString)).",
+                    isError: false
+                )
+            }
+            return ToolResult(
+                content: "Scheduled \(title) for \(dateStr) (workout \(w.id.uuidString.prefix(8))).",
+                isError: false
+            )
         } catch RepositoryError.noActivePlan {
             return ToolResult(content: "No active training plan. Ask the user to confirm the block goal/length first.",
                               isError: true)
