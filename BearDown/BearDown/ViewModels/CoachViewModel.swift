@@ -61,9 +61,11 @@ public final class CoachViewModel: ObservableObject {
 
     private var chipCache: [UUID: [CoachChip]] = [:]
     private let env: AppEnvironment
+    private let nav: AppNavigation?
 
-    public init(env: AppEnvironment) {
+    public init(env: AppEnvironment, nav: AppNavigation? = nil) {
         self.env = env
+        self.nav = nav
         self.env.coach.onTextDelta = { [weak self] delta in
             Task { @MainActor in self?.liveAssistantText += delta }
         }
@@ -287,5 +289,72 @@ public final class CoachViewModel: ObservableObject {
         }
         liveAssistantText = ""
         refresh()
+    }
+
+    public func applyProposal(_ chip: ProposalChip, mode: ProposalApplyMode) async {
+        do {
+            let applyMode: ProposalApplyService.ApplyMode
+            switch mode {
+            case .addInactive:   applyMode = .addInactive
+            case .addAndSwitch:  applyMode = .addAndSwitch
+            case .update:        applyMode = .update
+            }
+            let result = try env.proposals.apply(chip.envelope, mode: applyMode)
+            try writebackEnvelope(messageId: chip.messageId, toolUseId: chip.toolUseId) { env in
+                env.status = .applied
+                env.appliedPlanId = result.planId
+                env.appliedAt = .now
+                env.appliedMode = result.appliedMode
+            }
+            if mode == .addAndSwitch, let nav {
+                nav.selectedTab = 1
+                nav.pendingPlanDetail = result.planId
+            }
+            refresh()
+        } catch {
+            state = .error("Couldn't apply this plan: \(error.localizedDescription)")
+        }
+    }
+
+    public func dismissProposal(_ chip: ProposalChip) {
+        do {
+            try writebackEnvelope(messageId: chip.messageId, toolUseId: chip.toolUseId) { env in
+                env.status = .dismissed
+            }
+            refresh()
+        } catch {
+            state = .error("Couldn't dismiss: \(error.localizedDescription)")
+        }
+    }
+
+    public func navigateToAppliedProposal(_ chip: ProposalChip) {
+        guard let nav, let pid = chip.envelope.appliedPlanId else { return }
+        nav.selectedTab = 1
+        nav.pendingPlanDetail = pid
+    }
+
+    /// Decode toolResultsJSON, locate the entry matching toolUseId, mutate its
+    /// envelope via `mutate`, re-encode, and persist via ChatRepository.
+    private func writebackEnvelope(messageId: UUID,
+                                   toolUseId: String,
+                                   mutate: (inout ProposalEnvelope) -> Void) throws {
+        let convId = env.chats.currentConversationId()
+        let msgs = try env.chats.messages(in: convId)
+        guard let target = msgs.first(where: { $0.id == messageId }),
+              let raw = target.toolResultsJSON,
+              var arr = (try JSONSerialization.jsonObject(with: Data(raw.utf8))) as? [[String: Any]]
+        else { throw RepositoryError.workoutNotFound }
+
+        for i in 0..<arr.count {
+            guard (arr[i]["tool_use_id"] as? String) == toolUseId,
+                  let content = arr[i]["content"] as? String,
+                  var decoded = ProposalCodec.decode(contentString: content)
+            else { continue }
+            mutate(&decoded)
+            arr[i]["content"] = try ProposalCodec.encode(decoded)
+        }
+        let newData = try JSONSerialization.data(withJSONObject: arr, options: [.sortedKeys])
+        let newJSON = String(data: newData, encoding: .utf8) ?? "[]"
+        try env.chats.replaceToolResults(messageId: messageId, newJSON: newJSON)
     }
 }

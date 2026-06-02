@@ -372,4 +372,92 @@ final class CoachViewModelTests: XCTestCase {
         XCTAssertEqual(vm.messages.map(\.text), ["from A", "reply A"])
         XCTAssertNotEqual(a, b)
     }
+
+    func test_applyProposal_addInactive_writesWorkouts_andMutatesEnvelopeStatus() async throws {
+        let env = ProposalEnvelope(
+            mode: .add, status: .pending, planTitle: "New Plan", planGoal: "",
+            planId: nil, appliedPlanId: nil, appliedAt: nil, appliedMode: nil,
+            workouts: [.init(date: dateFromIso("2026-07-01"),
+                             title: "W1", summary: "", blocks: [])]
+        )
+        let envJSON = try ProposalCodec.encode(env)
+        try self.env.chats.append(role: .assistant, text: "",
+            toolCallsJSON: #"[{"id":"toolu_1","name":"propose_plan","input":{}}]"#,
+            toolResultsJSON: #"[{"tool_use_id":"toolu_1","content":\#(jsonStringLiteral(envJSON))}]"#)
+        let vm = CoachViewModel(env: self.env)
+        vm.refresh()
+        guard case let .proposal(p)? = vm.chips(for: vm.messages.last!).first(where: { if case .proposal = $0 { return true }; return false }) else {
+            return XCTFail("expected a proposal chip")
+        }
+        await vm.applyProposal(p, mode: .addInactive)
+        vm.refresh()
+        let after = vm.messages.last!
+        let updatedEnv = decodeFirstEnvelope(after)
+        XCTAssertEqual(updatedEnv?.status, .applied)
+        XCTAssertEqual(updatedEnv?.appliedMode, .inactive)
+        XCTAssertNotNil(updatedEnv?.appliedPlanId)
+        // Use startOfDay to match WorkoutRepository.upsert's local-TZ day normalization.
+        let day = Calendar.current.startOfDay(for: dateFromIso("2026-07-01"))
+        let written = try self.env.workouts.workoutsBetween(start: day, end: day.addingTimeInterval(86400))
+        XCTAssertEqual(written.first?.title, "W1")
+    }
+
+    func test_applyProposal_addAndSwitch_setsNav() async throws {
+        let env = ProposalEnvelope(
+            mode: .add, status: .pending, planTitle: "Switch Plan", planGoal: "",
+            planId: nil, appliedPlanId: nil, appliedAt: nil, appliedMode: nil,
+            workouts: [.init(date: dateFromIso("2026-07-02"), title: "W", summary: "", blocks: [])]
+        )
+        let envJSON = try ProposalCodec.encode(env)
+        try self.env.chats.append(role: .assistant, text: "",
+            toolCallsJSON: #"[{"id":"t","name":"propose_plan","input":{}}]"#,
+            toolResultsJSON: #"[{"tool_use_id":"t","content":\#(jsonStringLiteral(envJSON))}]"#)
+        let nav = AppNavigation()
+        let vm = CoachViewModel(env: self.env, nav: nav)
+        vm.refresh()
+        let chip = firstProposal(in: vm)
+        await vm.applyProposal(chip, mode: .addAndSwitch)
+        XCTAssertEqual(nav.selectedTab, 1)
+        XCTAssertNotNil(nav.pendingPlanDetail)
+    }
+
+    func test_dismissProposal_mutatesEnvelopeWithoutWritingWorkouts() throws {
+        let env = ProposalEnvelope(mode: .add, status: .pending, planTitle: "Phantom",
+            planGoal: "", planId: nil, appliedPlanId: nil, appliedAt: nil, appliedMode: nil,
+            workouts: [.init(date: dateFromIso("2026-07-01"), title: "W", summary: "", blocks: [])])
+        let envJSON = try ProposalCodec.encode(env)
+        try self.env.chats.append(role: .assistant, text: "",
+            toolCallsJSON: #"[{"id":"t","name":"propose_plan","input":{}}]"#,
+            toolResultsJSON: #"[{"tool_use_id":"t","content":\#(jsonStringLiteral(envJSON))}]"#)
+        let vm = CoachViewModel(env: self.env)
+        vm.refresh()
+        let chip = firstProposal(in: vm)
+        vm.dismissProposal(chip)
+        vm.refresh()
+        XCTAssertEqual(decodeFirstEnvelope(vm.messages.last!)?.status, .dismissed)
+        let day = Calendar.current.startOfDay(for: dateFromIso("2026-07-01"))
+        let workouts = try self.env.workouts.workoutsBetween(start: day, end: day.addingTimeInterval(86400))
+        XCTAssertTrue(workouts.isEmpty, "dismiss must not write workouts")
+    }
+
+    private func firstProposal(in vm: CoachViewModel) -> ProposalChip {
+        for m in vm.messages {
+            for chip in vm.chips(for: m) {
+                if case .proposal(let p) = chip { return p }
+            }
+        }
+        fatalError("no proposal chip found")
+    }
+
+    private func decodeFirstEnvelope(_ m: ChatMessage) -> ProposalEnvelope? {
+        guard let raw = m.toolResultsJSON,
+              let arr = (try? JSONSerialization.jsonObject(with: Data(raw.utf8))) as? [[String: Any]],
+              let content = arr.first?["content"] as? String else { return nil }
+        return ProposalCodec.decode(contentString: content)
+    }
+
+    private func jsonStringLiteral(_ s: String) -> String {
+        let data = try! JSONSerialization.data(withJSONObject: s, options: [.fragmentsAllowed])
+        return String(data: data, encoding: .utf8)!
+    }
 }
