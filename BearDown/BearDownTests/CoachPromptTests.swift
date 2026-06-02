@@ -32,6 +32,13 @@ final class CoachPromptTests: XCTestCase {
         XCTAssertTrue(s.contains("No active plan yet."))
     }
 
+    func test_toolAddendum_mentionsPlanTitle() {
+        XCTAssertTrue(CoachPrompt.toolAddendum.contains("plan_title"),
+                      "tool addendum must instruct the model when to use plan_title")
+        XCTAssertTrue(CoachPrompt.toolAddendum.contains("new training block"),
+                      "tool addendum must frame plan_title as a new-block signal")
+    }
+
     private func dateFromIso(_ s: String) -> Date {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withFullDate]
