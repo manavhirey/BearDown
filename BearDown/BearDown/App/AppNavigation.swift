@@ -10,5 +10,8 @@ public final class AppNavigation: ObservableObject {
     /// When set non-nil, TodayView jumps to this date and clears it.
     @Published public var focusedDate: Date?
 
+    /// When set non-nil, PlansListView pushes the detail for this plan id and clears it.
+    @Published public var pendingPlanDetail: UUID?
+
     public init() {}
 }

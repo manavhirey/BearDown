@@ -2,6 +2,7 @@ import SwiftUI
 
 public struct CoachView: View {
     @StateObject private var vm: CoachViewModel
+    @EnvironmentObject private var env: AppEnvironment
     @EnvironmentObject private var nav: AppNavigation
 
     public init(env: AppEnvironment) {
@@ -67,7 +68,11 @@ public struct CoachView: View {
                                    text: m.text,
                                    toolChips: vm.chips(for: m),
                                    onChipTap: { chip in
-                                       if let d = chip.workoutDate {
+                                       if let planId = chip.planId {
+                                           try? env.plans.activate(planId: planId)
+                                           nav.selectedTab = 1
+                                           nav.pendingPlanDetail = planId
+                                       } else if let d = chip.workoutDate {
                                            nav.focusedDate = d
                                            nav.selectedTab = 0
                                        }
