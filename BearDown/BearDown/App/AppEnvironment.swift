@@ -14,6 +14,7 @@ public final class AppEnvironment: ObservableObject {
     public let workouts: WorkoutRepository
     public let chats: ChatRepository
     public let coach: CoachService
+    public let proposals: ProposalApplyService
 
     public init(modelContainer: ModelContainer,
                 keychain: KeychainStore? = nil,
@@ -47,6 +48,7 @@ public final class AppEnvironment: ObservableObject {
             notificationsEnabled: prefsEnabled
         )
         self.chats = ChatRepository(context: ctx)
+        self.proposals = ProposalApplyService(plans: plans, workouts: workouts)
         let toolsImpl = CoachTools(plans: plans, workouts: workouts)
         self.coach = CoachService(client: anthropic,
                                   keychain: self.keychain,

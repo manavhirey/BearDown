@@ -123,4 +123,8 @@ final class ProposalApplyServiceTests: XCTestCase {
         f.formatOptions = [.withFullDate]
         return f.date(from: s)!
     }
+
+    func test_appEnvironment_exposesProposalsService() {
+        XCTAssertNotNil(env.proposals)
+    }
 }
