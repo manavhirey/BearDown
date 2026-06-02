@@ -20,7 +20,7 @@ final class CoachToolsTests: XCTestCase {
 
     func test_definitions_listAllTools() {
         let names = tools.definitions.map(\.name).sorted()
-        XCTAssertEqual(names, ["delete_workout", "get_recent_history", "propose_plan", "upsert_workout"])
+        XCTAssertEqual(names, ["delete_workout", "get_recent_history", "propose_plan", "propose_plan_update", "upsert_workout"])
     }
 
     func test_dispatch_upsertWorkout_persists() throws {
@@ -161,6 +161,58 @@ final class CoachToolsTests: XCTestCase {
 
     func test_definitions_includePropose_plan() {
         XCTAssertTrue(tools.definitions.map(\.name).contains("propose_plan"))
+    }
+
+    func test_propose_plan_update_resolvesPlanId_andCopiesTitleGoal() throws {
+        let target = try env.plans.createPlan(
+            title: "Race Prep — June 24",
+            startDate: .now, endDate: .now.addingTimeInterval(28 * 86400))
+        target.goal = "3.5mi race goal pacing block"
+        try env.modelContainer.mainContext.save()
+
+        let input: [String: Any] = [
+            "plan_id": target.id.uuidString,
+            "workouts": [["date": "2026-06-10", "title": "Tempo run", "summary": "20 min",
+                          "blocks": [["order": 0, "kind": "cardio", "title": "Run", "notes": "",
+                                      "cardio": ["modality": "Run", "duration_minutes": 20]]]]],
+        ]
+        let result = try tools.dispatch(name: "propose_plan_update", input: input)
+        XCTAssertFalse(result.isError)
+        let env2 = ProposalCodec.decode(contentString: result.content)
+        XCTAssertNotNil(env2)
+        XCTAssertEqual(env2?.mode, .update)
+        XCTAssertEqual(env2?.status, .pending)
+        XCTAssertEqual(env2?.planId, target.id)
+        XCTAssertEqual(env2?.planTitle, "Race Prep — June 24")
+        XCTAssertEqual(env2?.planGoal, "3.5mi race goal pacing block")
+    }
+
+    func test_propose_plan_update_rejectsUnknownPlanId() {
+        let r = (try? tools.dispatch(name: "propose_plan_update",
+            input: ["plan_id": UUID().uuidString,
+                    "workouts": [["date": "2026-06-10", "title": "x", "summary": "", "blocks": []]]]))
+            ?? .init(content: "?", isError: false)
+        XCTAssertTrue(r.isError)
+    }
+
+    func test_propose_plan_update_rejectsMissingPlanId() {
+        let r = (try? tools.dispatch(name: "propose_plan_update",
+            input: ["workouts": [["date": "2026-06-10", "title": "x", "summary": "", "blocks": []]]]))
+            ?? .init(content: "?", isError: false)
+        XCTAssertTrue(r.isError)
+    }
+
+    func test_propose_plan_update_rejectsEmptyWorkouts() throws {
+        let target = try env.plans.createPlan(
+            title: "X", startDate: .now, endDate: .now.addingTimeInterval(86400))
+        let r = (try? tools.dispatch(name: "propose_plan_update",
+            input: ["plan_id": target.id.uuidString, "workouts": []]))
+            ?? .init(content: "?", isError: false)
+        XCTAssertTrue(r.isError)
+    }
+
+    func test_definitions_includePropose_plan_update() {
+        XCTAssertTrue(tools.definitions.map(\.name).contains("propose_plan_update"))
     }
 
     private func dateFromIso(_ s: String) -> Date {

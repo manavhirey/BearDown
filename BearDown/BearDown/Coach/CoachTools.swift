@@ -155,6 +155,67 @@ public final class CoachTools {
                         ]
                     ]
                   ]),
+            .init(name: "propose_plan_update",
+                  description: "Propose a revision to an existing plan (any plan you can see in the context block — usually the active plan). The user approves the whole set of changes with one tap. Use this when you want to overhaul a week or more of an existing block; for moving a single workout, use upsert_workout instead. Workouts in the proposal overwrite existing workouts on matching dates; workouts on new dates are added; nothing is deleted unless the user later asks via chat.",
+                  inputSchema: [
+                    "type": "object",
+                    "required": ["plan_id", "workouts"],
+                    "properties": [
+                        "plan_id": ["type": "string",
+                                    "description": "UUID of the plan being updated. Learn this from prior tool-result envelopes' applied_plan_id or from the active plan id in the <context> block."],
+                        "workouts": [
+                            "type": "array",
+                            "minItems": 1,
+                            "items": [
+                                "type": "object",
+                                "required": ["date", "title", "summary", "blocks"],
+                                "properties": [
+                                    "date": ["type": "string", "description": "YYYY-MM-DD"],
+                                    "title": ["type": "string"],
+                                    "summary": ["type": "string"],
+                                    "blocks": [
+                                        "type": "array",
+                                        "items": [
+                                            "type": "object",
+                                            "required": ["order", "kind", "title", "notes"],
+                                            "properties": [
+                                                "order": ["type": "integer"],
+                                                "kind": ["type": "string", "enum": ["strength", "cardio", "mobility"]],
+                                                "title": ["type": "string"],
+                                                "notes": ["type": "string"],
+                                                "exercises": [
+                                                    "type": "array",
+                                                    "items": [
+                                                        "type": "object",
+                                                        "required": ["order", "name", "sets", "reps"],
+                                                        "properties": [
+                                                            "order": ["type": "integer"],
+                                                            "name": ["type": "string"],
+                                                            "sets": ["type": "integer"],
+                                                            "reps": ["type": "string"],
+                                                            "load": ["type": "string"],
+                                                            "rest_seconds": ["type": "integer"]
+                                                        ]
+                                                    ]
+                                                ],
+                                                "cardio": [
+                                                    "type": "object",
+                                                    "required": ["modality"],
+                                                    "properties": [
+                                                        "modality": ["type": "string"],
+                                                        "duration_minutes": ["type": "integer"],
+                                                        "distance_meters": ["type": "number"],
+                                                        "target": ["type": "string"]
+                                                    ]
+                                                ]
+                                            ]
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                  ]),
         ]
     }
 
@@ -168,6 +229,8 @@ public final class CoachTools {
             return try handleHistory(input)
         case "propose_plan":
             return try handlePropose(input)
+        case "propose_plan_update":
+            return try handleProposeUpdate(input)
         default:
             return ToolResult(content: "Unknown tool: \(name)", isError: true)
         }
@@ -294,6 +357,37 @@ public final class CoachTools {
             "status": "pending",
             "plan_title": planTitle,
             "plan_goal": planGoal,
+            "workouts": normalized,
+        ]
+        let data = try JSONSerialization.data(withJSONObject: envelope, options: [.sortedKeys])
+        return ToolResult(content: String(data: data, encoding: .utf8) ?? "{}", isError: false)
+    }
+
+    private func handleProposeUpdate(_ input: [String: Any]) throws -> ToolResult {
+        guard let planIdStr = input["plan_id"] as? String,
+              let planId = UUID(uuidString: planIdStr) else {
+            return ToolResult(content: "Invalid or missing `plan_id`.", isError: true)
+        }
+        guard let plan = try plans.plan(id: planId) else {
+            return ToolResult(content: "No plan found with id \(planIdStr). It may have been deleted; ask the user.",
+                              isError: true)
+        }
+        let rawWorkouts = (input["workouts"] as? [[String: Any]]) ?? []
+        guard !rawWorkouts.isEmpty else {
+            return ToolResult(content: "Proposal must include at least one workout.", isError: true)
+        }
+        let normalized: [[String: Any]]
+        do { normalized = try ProposalCodec.normalizeWorkouts(rawWorkouts) }
+        catch let e as ProposalCodec.NormalizeError {
+            return ToolResult(content: e.message, isError: true)
+        }
+        let envelope: [String: Any] = [
+            "schema": ProposalCodec.schemaVersion,
+            "mode": "update",
+            "status": "pending",
+            "plan_id": plan.id.uuidString,
+            "plan_title": plan.title,
+            "plan_goal": plan.goal,
             "workouts": normalized,
         ]
         let data = try JSONSerialization.data(withJSONObject: envelope, options: [.sortedKeys])
