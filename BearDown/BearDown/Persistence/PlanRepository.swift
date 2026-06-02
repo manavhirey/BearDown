@@ -46,4 +46,16 @@ public final class PlanRepository {
             try context.save()
         }
     }
+
+    public func allPlans() throws -> [TrainingPlan] {
+        let descriptor = FetchDescriptor<TrainingPlan>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        let rows = try context.fetch(descriptor)
+        // Active first, then createdAt desc among the rest.
+        return rows.sorted { lhs, rhs in
+            if lhs.isActive != rhs.isActive { return lhs.isActive }
+            return lhs.createdAt > rhs.createdAt
+        }
+    }
 }

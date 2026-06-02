@@ -53,4 +53,30 @@ final class PlanRepositoryTests: XCTestCase {
         try repo.extendActivePlan(throughDate: .now.addingTimeInterval(5 * 86400))
         XCTAssertEqual(try repo.activePlan()?.endDate, originalEnd)
     }
+
+    func test_allPlans_ordersActiveFirstThenCreatedAtDesc() throws {
+        let older = try repo.createPlan(title: "Older",
+                                        startDate: .now.addingTimeInterval(-10 * 86400),
+                                        endDate: .now.addingTimeInterval(-3 * 86400))
+        // Force a measurable createdAt difference. SwiftData stores Date with
+        // sub-millisecond precision but tests run fast; nudge older back.
+        older.createdAt = .now.addingTimeInterval(-3600)
+        older.isActive = false
+        older.archivedAt = .now.addingTimeInterval(-1800)
+
+        let newerArchived = try repo.createPlan(title: "Newer Archived",
+                                                startDate: .now.addingTimeInterval(-5 * 86400),
+                                                endDate: .now)
+        // createPlan marks it active and archives `older`. Flip newerArchived inactive.
+        newerArchived.isActive = false
+        newerArchived.archivedAt = .now
+
+        let active = try repo.createPlan(title: "Active Block",
+                                         startDate: .now,
+                                         endDate: .now.addingTimeInterval(7 * 86400))
+
+        let listed = try repo.allPlans()
+        XCTAssertEqual(listed.map(\.title), ["Active Block", "Newer Archived", "Older"])
+        XCTAssertEqual(listed.first?.id, active.id)
+    }
 }
