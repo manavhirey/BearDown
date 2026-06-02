@@ -108,4 +108,27 @@ public final class ChatRepository {
         }
         return summaries.sorted { $0.lastMessageAt > $1.lastMessageAt }
     }
+
+    /// Switch the active conversation. No-op semantics if `id` doesn't correspond to
+    /// any stored messages — `messages(in:)` will return `[]` and CoachView will render
+    /// the blank composer; the user recovers via the history list.
+    public func switchConversation(to id: UUID) {
+        cachedConversationId = id
+    }
+
+    /// Delete all messages with this `conversationId`. If `id` was the cached current,
+    /// mints a fresh `UUID` for the new current (same end-state as
+    /// `archiveCurrentConversation()`).
+    public func deleteConversation(id: UUID) throws {
+        let rows = try context.fetch(FetchDescriptor<ChatMessage>(
+            predicate: #Predicate { $0.conversationId == id }
+        ))
+        for row in rows {
+            context.delete(row)
+        }
+        try context.save()
+        if cachedConversationId == id {
+            cachedConversationId = UUID()
+        }
+    }
 }

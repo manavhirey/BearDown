@@ -127,4 +127,78 @@ final class ChatRepositoryTests: XCTestCase {
         XCTAssertTrue(summaryB.isCurrent)
         XCTAssertFalse(summaryA.isCurrent)
     }
+
+    // MARK: - switchConversation(to:)
+
+    func test_switchConversation_changesCurrentConversationId() throws {
+        let a = repo.currentConversationId()
+        try repo.append(role: .user, text: "A1", toolCallsJSON: nil, toolResultsJSON: nil)
+        repo.archiveCurrentConversation()
+        let b = repo.currentConversationId()
+        try repo.append(role: .user, text: "B1", toolCallsJSON: nil, toolResultsJSON: nil)
+        XCTAssertEqual(repo.currentConversationId(), b)
+
+        repo.switchConversation(to: a)
+        XCTAssertEqual(repo.currentConversationId(), a)
+    }
+
+    func test_switchConversation_unknownId_isNoOp() throws {
+        let a = repo.currentConversationId()
+        try repo.append(role: .user, text: "A1", toolCallsJSON: nil, toolResultsJSON: nil)
+        let bogus = UUID()
+        repo.switchConversation(to: bogus)
+        // Per spec: the call just sets cachedConversationId. messages(in:) returns []
+        // for the unknown id; user recovers via the history list.
+        XCTAssertEqual(repo.currentConversationId(), bogus)
+        XCTAssertEqual(try repo.messages(in: bogus), [])
+        // Pre-existing messages for `a` still resolvable explicitly:
+        XCTAssertEqual(try repo.messages(in: a).count, 1)
+    }
+
+    // MARK: - deleteConversation(id:)
+
+    func test_deleteConversation_removesAllItsMessages() throws {
+        let a = repo.currentConversationId()
+        try repo.append(role: .user, text: "A1", toolCallsJSON: nil, toolResultsJSON: nil)
+        try repo.append(role: .assistant, text: "A2", toolCallsJSON: nil, toolResultsJSON: nil)
+
+        try repo.deleteConversation(id: a)
+        XCTAssertEqual(try repo.messages(in: a), [])
+    }
+
+    func test_deleteConversation_otherConversationsUntouched() throws {
+        let a = repo.currentConversationId()
+        try repo.append(role: .user, text: "A1", toolCallsJSON: nil, toolResultsJSON: nil)
+        repo.archiveCurrentConversation()
+        let b = repo.currentConversationId()
+        try repo.append(role: .user, text: "B1", toolCallsJSON: nil, toolResultsJSON: nil)
+        try repo.append(role: .assistant, text: "B2", toolCallsJSON: nil, toolResultsJSON: nil)
+
+        try repo.deleteConversation(id: a)
+        XCTAssertEqual(try repo.messages(in: a), [])
+        XCTAssertEqual(try repo.messages(in: b).count, 2)
+    }
+
+    func test_deleteConversation_currentMintsAFreshOne() throws {
+        let a = repo.currentConversationId()
+        try repo.append(role: .user, text: "A1", toolCallsJSON: nil, toolResultsJSON: nil)
+        XCTAssertEqual(repo.currentConversationId(), a)
+
+        try repo.deleteConversation(id: a)
+
+        let fresh = repo.currentConversationId()
+        XCTAssertNotEqual(fresh, a, "deleting the current conversation should mint a new id")
+        XCTAssertEqual(try repo.messages(in: fresh), [],
+                       "freshly minted current conversation has no messages")
+    }
+
+    func test_deleteConversation_unknownId_isNoOp() throws {
+        let a = repo.currentConversationId()
+        try repo.append(role: .user, text: "A1", toolCallsJSON: nil, toolResultsJSON: nil)
+
+        let bogus = UUID()
+        XCTAssertNoThrow(try repo.deleteConversation(id: bogus))
+        XCTAssertEqual(try repo.messages(in: a).count, 1, "untouched")
+        XCTAssertEqual(repo.currentConversationId(), a, "current id unchanged")
+    }
 }
