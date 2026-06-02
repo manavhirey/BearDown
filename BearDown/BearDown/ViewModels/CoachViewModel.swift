@@ -2,6 +2,48 @@ import Combine
 import Foundation
 import SwiftData
 
+public enum CoachChip: Identifiable, Equatable {
+    case workout(ChatBubble.ToolChip)
+    case planSwitch(ChatBubble.ToolChip)
+    case proposal(ProposalChip)
+
+    public var id: String {
+        switch self {
+        case .workout(let c): return "w-\(c.id)"
+        case .planSwitch(let c): return "s-\(c.id)"
+        case .proposal(let p): return "p-\(p.id)"
+        }
+    }
+}
+
+/// View-ready snapshot of a proposal envelope, paired with the source message
+/// info needed to write status changes back through ChatRepository.
+public struct ProposalChip: Identifiable, Equatable {
+    public let id: String           // stable: messageId-toolUseId
+    public let messageId: UUID
+    public let toolUseId: String
+    public let envelope: ProposalEnvelope
+    public let workoutCount: Int    // pre-computed for sub-label rendering
+    public let firstDate: Date?
+    public let lastDate: Date?
+    /// True if this chip is a retroactive applied-state synthesis (from pre-feature
+    /// chat history). Not user-actionable: no buttons, no tap-target if appliedPlanId
+    /// can't be resolved. Filled by computeChips() — see Task 16.
+    public let isRetroactive: Bool
+
+    public init(id: String, messageId: UUID, toolUseId: String,
+                envelope: ProposalEnvelope,
+                workoutCount: Int, firstDate: Date?, lastDate: Date?,
+                isRetroactive: Bool = false) {
+        self.id = id; self.messageId = messageId; self.toolUseId = toolUseId
+        self.envelope = envelope
+        self.workoutCount = workoutCount
+        self.firstDate = firstDate
+        self.lastDate = lastDate
+        self.isRetroactive = isRetroactive
+    }
+}
+
 @MainActor
 public final class CoachViewModel: ObservableObject {
     public enum State: Equatable {
@@ -17,7 +59,7 @@ public final class CoachViewModel: ObservableObject {
     @Published public var liveAssistantText: String = ""
     @Published public private(set) var lastUserText: String?
 
-    private var chipCache: [UUID: [ChatBubble.ToolChip]] = [:]
+    private var chipCache: [UUID: [CoachChip]] = [:]
     private let env: AppEnvironment
 
     public init(env: AppEnvironment) {
@@ -41,18 +83,18 @@ public final class CoachViewModel: ObservableObject {
     }
 
     /// Pre-computed tool-call chips for an assistant message. O(1) lookup.
-    public func chips(for message: ChatMessage) -> [ChatBubble.ToolChip] {
+    public func chips(for message: ChatMessage) -> [CoachChip] {
         chipCache[message.id] ?? []
     }
 
     // Test seam — same body as the real computeChips, mirrors its signature.
-    internal static func computeChipsForTest(from m: ChatMessage) -> [ChatBubble.ToolChip] {
+    internal static func computeChipsForTest(from m: ChatMessage) -> [CoachChip] {
         computeChips(from: m)
     }
 
-    private static func computeChips(from m: ChatMessage) -> [ChatBubble.ToolChip] {
-        var switchChips: [ChatBubble.ToolChip] = []
-        var workoutChips: [ChatBubble.ToolChip] = []
+    private static func computeChips(from m: ChatMessage) -> [CoachChip] {
+        var switchChips: [CoachChip] = []
+        var workoutChips: [CoachChip] = []
         var seenPlanIds = Set<UUID>()
 
         // Tool result → plan-switch chips, dedup'd per plan id.
@@ -62,13 +104,14 @@ public final class CoachViewModel: ObservableObject {
                 guard let content = dict["content"] as? String,
                       let parsed = parsePlanSwitchMarker(in: content),
                       seenPlanIds.insert(parsed.id).inserted else { continue }
-                switchChips.append(.init(
+                let tc = ChatBubble.ToolChip(
                     id: "switch-\(parsed.id.uuidString)",
                     label: "Switch to: \(parsed.title)",
                     isError: false,
                     workoutDate: nil,
                     planId: parsed.id
-                ))
+                )
+                switchChips.append(.planSwitch(tc))
             }
         }
 
@@ -83,30 +126,34 @@ public final class CoachViewModel: ObservableObject {
                 case "upsert_workout":
                     let date = input["date"] as? String ?? "?"
                     let title = input["title"] as? String ?? "Workout"
-                    workoutChips.append(.init(
+                    workoutChips.append(.workout(.init(
                         id: id,
                         label: "Scheduled \(title) — \(date)",
                         isError: false,
                         workoutDate: parseIso(date)
-                    ))
+                    )))
                 case "delete_workout":
                     let date = input["date"] as? String ?? "?"
-                    workoutChips.append(.init(
+                    workoutChips.append(.workout(.init(
                         id: id,
                         label: "Deleted workout on \(date)",
                         isError: false,
                         workoutDate: parseIso(date)
-                    ))
+                    )))
                 case "get_recent_history":
-                    workoutChips.append(.init(
+                    workoutChips.append(.workout(.init(
                         id: id, label: "Reviewed recent history",
                         isError: false, workoutDate: nil
-                    ))
+                    )))
+                case "propose_plan", "propose_plan_update":
+                    // Tool-call chip is suppressed here; the proposal chip emitted from
+                    // the tool result (handled in Task 14) is the visible surface.
+                    break
                 default:
-                    workoutChips.append(.init(
+                    workoutChips.append(.workout(.init(
                         id: id, label: "Called \(name)",
                         isError: false, workoutDate: nil
-                    ))
+                    )))
                 }
             }
         }

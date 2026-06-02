@@ -80,6 +80,27 @@ final class CoachViewModelTests: XCTestCase {
         XCTAssertEqual(vm.messages.last?.text, "ok")
     }
 
+    func test_computeChips_returnsCoachChip_workoutAndPlanSwitchCases() throws {
+        let planId = UUID()
+        let toolCalls: [[String: Any]] = [[
+            "id": "toolu_1", "name": "upsert_workout",
+            "input": ["date": "2026-06-08", "title": "Easy run", "summary": "", "blocks": []],
+        ]]
+        let toolResults: [[String: Any]] = [[
+            "tool_use_id": "toolu_1",
+            "content": "Scheduled \"Easy run\" for 2026-06-08 in plan \"Race Prep\" (plan_id=\(planId.uuidString)).",
+        ]]
+        let m = ChatMessage(role: .assistant, text: "", conversationId: UUID())
+        m.toolCallsJSON = String(data: try JSONSerialization.data(withJSONObject: toolCalls, options: [.sortedKeys]), encoding: .utf8)
+        m.toolResultsJSON = String(data: try JSONSerialization.data(withJSONObject: toolResults, options: [.sortedKeys]), encoding: .utf8)
+
+        let chips = CoachViewModel.computeChipsForTest(from: m)
+        XCTAssertEqual(chips.count, 2)
+
+        guard case .planSwitch = chips[0] else { return XCTFail("expected planSwitch first; got \(chips[0])") }
+        guard case .workout = chips[1] else { return XCTFail("expected workout second; got \(chips[1])") }
+    }
+
     func test_computeChips_extractsPlanIdFromToolResults() throws {
         let planId = UUID()
         let toolCalls: [[String: Any]] = [[
@@ -93,19 +114,19 @@ final class CoachViewModelTests: XCTestCase {
         ]]
         let callsJSON = String(data: try JSONSerialization.data(withJSONObject: toolCalls, options: [.sortedKeys]), encoding: .utf8)!
         let resultsJSON = String(data: try JSONSerialization.data(withJSONObject: toolResults, options: [.sortedKeys]), encoding: .utf8)!
-
         let m = ChatMessage(role: .assistant, text: "Built your block.", conversationId: UUID())
         m.toolCallsJSON = callsJSON
         m.toolResultsJSON = resultsJSON
 
         let chips = CoachViewModel.computeChipsForTest(from: m)
-
-        // Switch chip is first, then the per-workout chip.
         XCTAssertEqual(chips.count, 2)
-        XCTAssertEqual(chips[0].planId, planId)
-        XCTAssertTrue(chips[0].label.contains("Race Prep — June 24"),
-                      "switch chip label must include plan title")
-        XCTAssertNil(chips[1].planId)  // per-workout chip
+        if case let .planSwitch(c) = chips[0] {
+            XCTAssertEqual(c.planId, planId)
+            XCTAssertTrue(c.label.contains("Race Prep — June 24"))
+        } else { XCTFail("first chip should be planSwitch") }
+        if case let .workout(c) = chips[1] {
+            XCTAssertNil(c.planId)
+        } else { XCTFail("second chip should be workout") }
     }
 
     func test_computeChips_dedupsMultipleWorkoutsToOneSwitchChipPerPlan() throws {
@@ -124,8 +145,8 @@ final class CoachViewModelTests: XCTestCase {
         m.toolResultsJSON = String(data: try JSONSerialization.data(withJSONObject: toolResults, options: [.sortedKeys]), encoding: .utf8)
 
         let chips = CoachViewModel.computeChipsForTest(from: m)
-        let switchChips = chips.filter { $0.planId != nil }
-        XCTAssertEqual(switchChips.count, 1, "3 workouts -> 1 dedup'd switch chip")
+        let switchChips = chips.filter { if case .planSwitch = $0 { return true }; return false }
+        XCTAssertEqual(switchChips.count, 1)
     }
 
     func test_refresh_afterSwitchConversation_loadsTheSwitchedConversation() throws {

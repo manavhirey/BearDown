@@ -3,8 +3,8 @@ import SwiftUI
 public struct ChatBubble: View {
     public let role: ChatRole
     public let text: String
-    public let toolChips: [ToolChip]
-    public let onChipTap: (ToolChip) -> Void
+    public let toolChips: [CoachChip]
+    public let onChipTap: (ChatBubble.ToolChip) -> Void
 
     public struct ToolChip: Identifiable, Equatable {
         public let id: String
@@ -25,8 +25,8 @@ public struct ChatBubble: View {
 
     public init(role: ChatRole,
                 text: String,
-                toolChips: [ToolChip] = [],
-                onChipTap: @escaping (ToolChip) -> Void = { _ in }) {
+                toolChips: [CoachChip] = [],
+                onChipTap: @escaping (ChatBubble.ToolChip) -> Void = { _ in }) {
         self.role = role
         self.text = text
         self.toolChips = toolChips
@@ -92,23 +92,24 @@ public struct ChatBubble: View {
     }
 
     private var chipStrip: some View {
-        FlexibleChipRow(chips: toolChips) { chip in
-            Button { onChipTap(chip) } label: {
-                editorialChip(chip)
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(toolChips) { chip in
+                switch chip {
+                case .planSwitch(let c):
+                    Button { onChipTap(c) } label: { switchPlanChip(c) }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(c.label)
+                case .workout(let c):
+                    Button { onChipTap(c) } label: { workoutChip(c) }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(c.label)
+                case .proposal:
+                    // Placeholder — real renderer arrives in Task 15.
+                    EmptyView()
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(chip.label)
         }
         .padding(.top, 2)
-    }
-
-    @ViewBuilder
-    private func editorialChip(_ chip: ToolChip) -> some View {
-        if chip.planId != nil {
-            switchPlanChip(chip)
-        } else {
-            workoutChip(chip)
-        }
     }
 
     private func workoutChip(_ chip: ToolChip) -> some View {
