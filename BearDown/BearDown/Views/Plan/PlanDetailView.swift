@@ -1,47 +1,51 @@
 import SwiftUI
 
-public struct PlanView: View {
-    @StateObject private var vm: PlanViewModel
+public struct PlanDetailView: View {
+    @StateObject private var vm: PlanDetailViewModel
     @EnvironmentObject private var env: AppEnvironment
-    @EnvironmentObject private var nav: AppNavigation
-    @State private var selected: Workout?
+    @Environment(\.dismiss) private var dismiss
 
-    public init(env: AppEnvironment) {
-        _vm = StateObject(wrappedValue: PlanViewModel(env: env))
+    @State private var selected: Workout?
+    @State private var showDeleteConfirm = false
+    @State private var actionError: String?
+
+    public init(plan: TrainingPlan) {
+        _vm = StateObject(wrappedValue: PlanDetailViewModel(plan: plan))
     }
 
     public var body: some View {
-        NavigationStack {
-            Group {
-                if vm.weeks.isEmpty {
-                    if vm.hasPlan {
-                        loadingState
-                    } else {
-                        emptyState
-                    }
-                } else {
-                    planScroll
-                }
-            }
+        planScroll
             .background(Color(.systemBackground))
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            .safeAreaInset(edge: .bottom, spacing: 0) { actionBar }
             .sheet(item: $selected) { w in
                 WorkoutDetailSheet(vm: WorkoutDetailViewModel(env: env, workout: w))
             }
+            .alert("Delete \"\(vm.title)\"?",
+                   isPresented: $showDeleteConfirm) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete", role: .destructive) { performDelete() }
+            } message: {
+                Text(vm.isActive
+                     ? "This is your active plan. Today will be empty until you activate or create another plan. All workouts and any scheduled notifications will be removed."
+                     : "All workouts in this plan will be removed.")
+            }
+            .alert("Action failed",
+                   isPresented: Binding(get: { actionError != nil },
+                                        set: { if !$0 { actionError = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(actionError ?? "")
+            }
             .onAppear { vm.refresh() }
-        }
     }
-
-    // MARK: – Plan scroll
 
     private var planScroll: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: BDStyle.sectionSpacing) {
                 hero
-                ForEach(vm.weeks) { section in
-                    weekSection(section)
-                }
+                ForEach(vm.weeks) { section in weekSection(section) }
                 Color.clear.frame(height: 8)
             }
             .padding(.horizontal, 24)
@@ -53,32 +57,37 @@ public struct PlanView: View {
         .refreshable { vm.refresh() }
     }
 
-    // MARK: – Hero
-
     private var hero: some View {
         VStack(alignment: .leading, spacing: 14) {
-            BDEyebrow(heroEyebrow)
-            Text("Training Block")
+            BDEyebrow(eyebrow)
+            Text(vm.title)
                 .font(BDStyle.displayTitle)
                 .lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
+            if !vm.goal.isEmpty {
+                Text(vm.goal)
+                    .font(BDStyle.bodySerif)
+                    .foregroundStyle(BDStyle.mutedText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             BDHairline().padding(.top, 4)
+            if vm.isActive {
+                HStack {
+                    Spacer()
+                    BDStatusPill(label: "Active",
+                                 systemImage: "circle.fill",
+                                 color: .green)
+                }
+            }
         }
     }
 
-    private var heroEyebrow: String {
-        guard let first = vm.weeks.first?.id,
-              let lastStart = vm.weeks.last?.id,
-              let lastEnd = Calendar.current.date(byAdding: .day, value: 6, to: lastStart) else {
-            return "\(vm.weeks.count) WEEKS"
-        }
-        let f = Self.heroRangeFormatter
-        return "\(vm.weeks.count) WEEKS · \(f.string(from: first)) – \(f.string(from: lastEnd))"
+    private var eyebrow: String {
+        let f = Self.eyebrowFormatter
+        return "\(f.string(from: vm.startDate)) – \(f.string(from: vm.endDate))".uppercased()
     }
 
-    // MARK: – Week section
-
-    private func weekSection(_ section: PlanViewModel.WeekSection) -> some View {
+    private func weekSection(_ section: PlanDetailViewModel.WeekSection) -> some View {
         let done = section.workouts.filter { $0.status == .completed }.count
         let total = section.workouts.count
         let progress = String(format: "%02d / %02d", done, total)
@@ -86,10 +95,7 @@ public struct PlanView: View {
         let weekTitle = String(format: "Week %02d", weekIndex)
 
         return VStack(alignment: .leading, spacing: 14) {
-            BDSectionHeader(
-                title: weekTitle,
-                trailing: AnyView(progressLabel(progress))
-            )
+            BDSectionHeader(title: weekTitle, trailing: AnyView(progressLabel(progress)))
             BDLabel(dateRangeLabel(for: section.id))
             VStack(spacing: 0) {
                 ForEach(Array(section.workouts.enumerated()), id: \.element.id) { idx, w in
@@ -112,8 +118,6 @@ public struct PlanView: View {
             .monospacedDigit()
     }
 
-    // MARK: – Workout row
-
     private func workoutRow(_ w: Workout) -> some View {
         let kinds: [BlockKind] = orderedKinds(for: w)
         return HStack(alignment: .top, spacing: 14) {
@@ -132,8 +136,7 @@ public struct PlanView: View {
                 }
             }
             Spacer(minLength: 8)
-            statusIcon(w.status)
-                .padding(.top, 2)
+            statusIcon(w.status).padding(.top, 2)
         }
         .padding(.vertical, 14)
         .contentShape(Rectangle())
@@ -170,67 +173,67 @@ public struct PlanView: View {
         }
     }
 
-    // MARK: – Empty / loading states
-
-    private var loadingState: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            BDEyebrow("Syncing")
-            Text("Loading your plan…")
-                .font(BDStyle.displayMedium)
-                .fixedSize(horizontal: false, vertical: true)
+    private var actionBar: some View {
+        VStack(spacing: 0) {
             BDHairline()
-            Text("Pulling your training block down from iCloud. This usually takes a few seconds.")
-                .font(BDStyle.bodySerif)
-                .foregroundStyle(BDStyle.mutedText)
-                .lineSpacing(4)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer()
-        }
-        .padding(.horizontal, 24)
-        .padding(.top, 24)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            BDEyebrow("No plan yet")
-            Text("Build your block.")
-                .font(BDStyle.displayTitle)
-                .fixedSize(horizontal: false, vertical: true)
-            BDHairline()
-            Text("Ask the Coach to draft a four-week training block tailored to your goals, schedule, and recovery.")
-                .font(BDStyle.bodySerif)
-                .foregroundStyle(BDStyle.mutedText)
-                .lineSpacing(4)
-                .fixedSize(horizontal: false, vertical: true)
-            Button {
-                nav.selectedTab = 2
-            } label: {
-                HStack(spacing: 8) {
-                    Text("Ask Coach".uppercased())
+            HStack(spacing: 12) {
+                Button(role: .destructive) {
+                    showDeleteConfirm = true
+                } label: {
+                    Text("DELETE")
                         .font(BDStyle.monoSmall)
                         .tracking(BDStyle.trackingWide)
-                    Image(systemName: "arrow.right")
-                        .font(.caption.weight(.bold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 4)
+                .buttonStyle(.bordered)
+                .tint(.red)
+                .controlSize(.large)
+                .accessibilityIdentifier("plan.delete")
+
+                if !vm.isActive {
+                    Button {
+                        performActivate()
+                    } label: {
+                        Text("MAKE ACTIVE")
+                            .font(BDStyle.monoSmall)
+                            .tracking(BDStyle.trackingWide)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.primary)
+                    .controlSize(.large)
+                    .accessibilityIdentifier("plan.makeActive")
+                }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.primary)
-            .controlSize(.large)
-            .padding(.top, 6)
-            Spacer()
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 10)
+            .background(.bar)
         }
-        .padding(.horizontal, 24)
-        .padding(.top, 24)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: – Helpers
+    private func performActivate() {
+        do {
+            try env.plans.activate(planId: vm.planId)
+            vm.refresh()
+        } catch {
+            actionError = error.localizedDescription
+        }
+    }
 
-    private static let heroRangeFormatter: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "MMM d"; return f
+    private func performDelete() {
+        do {
+            try env.plans.delete(planId: vm.planId)
+            dismiss()
+        } catch {
+            actionError = error.localizedDescription
+        }
+    }
+
+    private static let eyebrowFormatter: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "MMM d · yyyy"; return f
     }()
 
     private static let weekRangeFormatter: DateFormatter = {
@@ -243,8 +246,6 @@ public struct PlanView: View {
         return "\(f.string(from: weekStart)) – \(f.string(from: end))"
     }
 
-    // Order kinds the way they appear in the workout's blocks (de-duped),
-    // matching the WorkoutDetailSheet ordering so chips read consistently.
     private func orderedKinds(for w: Workout) -> [BlockKind] {
         var seen = Set<BlockKind>()
         var out: [BlockKind] = []
