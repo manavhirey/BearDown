@@ -32,28 +32,35 @@ public struct ChatHistoryView: View {
             Text("All messages will be removed.")
         }
         .onAppear { vm.refresh() }
-        .refreshable { vm.refresh() }
     }
 
     // MARK: – List
 
     private var list: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                pageHeader
+        VStack(alignment: .leading, spacing: 0) {
+            pageHeader
+            List {
                 ForEach(Array(vm.conversations.enumerated()), id: \.element.id) { idx, c in
-                    if idx > 0 { BDHairline() }
                     row(c)
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
                                 pendingDelete = c
                             } label: { Label("Delete", systemImage: "trash") }
                         }
+                        .overlay(alignment: .bottom) {
+                            if idx < vm.conversations.count - 1 {
+                                BDHairline()
+                            }
+                        }
                 }
-                Color.clear.frame(height: 8)
             }
+            .listStyle(.plain)
+            .scrollIndicators(.hidden)
+            .refreshable { vm.refresh() }
         }
-        .scrollIndicators(.hidden)
     }
 
     private var pageHeader: some View {
