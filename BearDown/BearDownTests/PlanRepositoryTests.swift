@@ -148,4 +148,31 @@ final class PlanRepositoryTests: XCTestCase {
         try repo.delete(planId: active.id)
         XCTAssertNil(try repo.activePlan())
     }
+
+    func test_findOrCreatePlan_caseInsensitiveTitleMatch() throws {
+        let original = try repo.findOrCreatePlan(title: "Race Prep", goal: "g", anchorDate: .now)
+        let again = try repo.findOrCreatePlan(title: "race prep", goal: "x", anchorDate: .now)
+        XCTAssertEqual(again.id, original.id)
+    }
+
+    func test_findOrCreatePlan_createsInactiveByDefault() throws {
+        let plan = try repo.findOrCreatePlan(title: "Race Prep",
+                                             goal: "3.5mi race goal",
+                                             anchorDate: .now)
+        XCTAssertFalse(plan.isActive)
+        XCTAssertEqual(plan.goal, "3.5mi race goal")
+        XCTAssertEqual(plan.startDate, Calendar.current.startOfDay(for: .now))
+        XCTAssertEqual(plan.endDate, plan.startDate)
+    }
+
+    func test_findOrCreatePlan_doesNotOverwriteGoalOnSecondCall() throws {
+        let first = try repo.findOrCreatePlan(title: "Race Prep",
+                                              goal: "original goal",
+                                              anchorDate: .now)
+        let again = try repo.findOrCreatePlan(title: "Race Prep",
+                                              goal: "new goal",
+                                              anchorDate: .now)
+        XCTAssertEqual(again.id, first.id)
+        XCTAssertEqual(again.goal, "original goal")
+    }
 }

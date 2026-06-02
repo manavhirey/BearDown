@@ -77,6 +77,21 @@ public final class PlanRepository {
         return try context.fetch(descriptor).first
     }
 
+    public func findOrCreatePlan(title: String, goal: String, anchorDate: Date) throws -> TrainingPlan {
+        let normalized = title.lowercased()
+        let rows = try context.fetch(FetchDescriptor<TrainingPlan>())
+        if let existing = rows.first(where: { $0.title.lowercased() == normalized }) {
+            return existing
+        }
+        let day = Calendar.current.startOfDay(for: anchorDate)
+        let plan = TrainingPlan(title: title, goal: goal,
+                                startDate: day, endDate: day,
+                                isActive: false)
+        context.insert(plan)
+        try context.save()
+        return plan
+    }
+
     public func activate(planId: UUID) throws {
         guard let target = try plan(id: planId) else { return }
         if target.isActive { return }  // idempotent — no churn
