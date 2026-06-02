@@ -174,55 +174,46 @@ public final class CoachTools {
     }
 
     private func handleUpsert(_ input: [String: Any]) throws -> ToolResult {
-        guard let dateStr = input["date"] as? String,
+        let normalized: [String: Any]
+        do { normalized = try ProposalCodec.normalizeWorkoutItem(input) }
+        catch let e as ProposalCodec.NormalizeError {
+            return ToolResult(content: e.message, isError: true)
+        }
+        guard let dateStr = normalized["date"] as? String,
               let date = parseIsoDate(dateStr) else {
+            // normalizeWorkoutItem already validated date — this guard is just a re-extract.
             return ToolResult(content: "Invalid or missing `date` (expected YYYY-MM-DD).", isError: true)
         }
-        let title = (input["title"] as? String) ?? ""
-        let summary = (input["summary"] as? String) ?? ""
-        guard !title.isEmpty else {
-            return ToolResult(content: "`title` is required.", isError: true)
-        }
-        let rawBlocks = (input["blocks"] as? [[String: Any]]) ?? []
-        var parsedBlocks: [BlockInput] = []
-        for (i, b) in rawBlocks.enumerated() {
-            guard let kindRaw = b["kind"] as? String,
-                  let kind = BlockKind(rawValue: kindRaw) else {
-                return ToolResult(content: "Block \(i): invalid `kind` (expected strength|cardio|mobility).",
-                                  isError: true)
-            }
-            let order = (b["order"] as? Int) ?? i
-            let blockTitle = (b["title"] as? String) ?? ""
+        let title = (normalized["title"] as? String) ?? ""
+        let summary = (normalized["summary"] as? String) ?? ""
+        let blockDicts = (normalized["blocks"] as? [[String: Any]]) ?? []
+        let parsedBlocks: [BlockInput] = blockDicts.map { b in
+            let kind = BlockKind(rawValue: b["kind"] as? String ?? "")!  // normalizer guaranteed validity
+            let order = (b["order"] as? Int) ?? 0
+            let bTitle = (b["title"] as? String) ?? ""
             let notes = (b["notes"] as? String) ?? ""
-
-            var exercises: [ExerciseInput] = []
-            if let raw = b["exercises"] as? [[String: Any]] {
-                for (j, e) in raw.enumerated() {
-                    guard let name = e["name"] as? String, !name.isEmpty,
-                          let sets = e["sets"] as? Int,
-                          let reps = e["reps"] as? String else {
-                        return ToolResult(content: "Block \(i) exercise \(j): missing name/sets/reps.",
-                                          isError: true)
-                    }
-                    exercises.append(.init(order: (e["order"] as? Int) ?? j,
-                                           name: name, sets: sets, reps: reps,
-                                           load: e["load"] as? String,
-                                           restSeconds: e["rest_seconds"] as? Int))
-                }
+            let exDicts = (b["exercises"] as? [[String: Any]]) ?? []
+            let exercises: [ExerciseInput] = exDicts.map { e in
+                ExerciseInput(
+                    order: (e["order"] as? Int) ?? 0,
+                    name: (e["name"] as? String) ?? "",
+                    sets: (e["sets"] as? Int) ?? 0,
+                    reps: (e["reps"] as? String) ?? "",
+                    load: e["load"] as? String,
+                    restSeconds: e["rest_seconds"] as? Int
+                )
             }
-
             var cardio: CardioInput? = nil
-            if let c = b["cardio"] as? [String: Any] {
-                guard let modality = c["modality"] as? String, !modality.isEmpty else {
-                    return ToolResult(content: "Block \(i) cardio: missing `modality`.", isError: true)
-                }
-                cardio = .init(modality: modality,
-                               durationMinutes: c["duration_minutes"] as? Int,
-                               distanceMeters: c["distance_meters"] as? Double,
-                               targetDescription: c["target"] as? String)
+            if let c = b["cardio"] as? [String: Any], let modality = c["modality"] as? String {
+                cardio = CardioInput(
+                    modality: modality,
+                    durationMinutes: c["duration_minutes"] as? Int,
+                    distanceMeters: c["distance_meters"] as? Double,
+                    targetDescription: c["target"] as? String
+                )
             }
-            parsedBlocks.append(.init(order: order, kind: kind, title: blockTitle, notes: notes,
-                                      exercises: exercises, cardio: cardio))
+            return BlockInput(order: order, kind: kind, title: bTitle, notes: notes,
+                              exercises: exercises, cardio: cardio)
         }
         let planTitle = (input["plan_title"] as? String).flatMap {
             $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0
@@ -230,7 +221,6 @@ public final class CoachTools {
         let planGoal = (input["plan_goal"] as? String).flatMap {
             $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0
         }
-
         let workoutInput = WorkoutInput(
             date: date, title: title, summary: summary, blocks: parsedBlocks,
             planTitle: planTitle, planGoal: planGoal
