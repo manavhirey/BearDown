@@ -200,12 +200,16 @@ public final class WorkoutRepository {
     }
 
     public func recentHistory(days: Int) throws -> [HistoryEntry] {
+        guard let active = try plans.activePlan() else { return [] }
+        let activeId = active.id
         let cal = Calendar.current
         let today = cal.startOfDay(for: .now)
         let start = cal.date(byAdding: .day, value: -(days - 1), to: today)!
         let end = today.addingTimeInterval(86400)
         let ws = try context.fetch(FetchDescriptor<Workout>(
-            predicate: #Predicate { $0.date >= start && $0.date < end },
+            predicate: #Predicate { w in
+                w.date >= start && w.date < end && w.plan?.id == activeId
+            },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         ))
         return ws.map { w in

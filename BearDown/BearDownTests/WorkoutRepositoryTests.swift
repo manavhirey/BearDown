@@ -142,4 +142,32 @@ final class WorkoutRepositoryTests: XCTestCase {
         let workout = try workouts.upsert(.init(date: .now, title: "W", summary: "", blocks: []))
         XCTAssertEqual(workout.plan?.id, active.id)
     }
+
+    func test_recentHistory_returnsOnlyActivePlanWorkouts() throws {
+        _ = try plans.createPlan(title: "Active",
+                                 startDate: .now,
+                                 endDate: .now.addingTimeInterval(7 * 86400))
+        _ = try workouts.upsert(.init(date: .now, title: "Active workout",
+                                      summary: "", blocks: []))
+        // Archived plan with its own workout
+        _ = try workouts.upsert(.init(date: .now.addingTimeInterval(-86400),
+                                      title: "Archived workout", summary: "",
+                                      blocks: [], planTitle: "Archived"))
+        let entries = try workouts.recentHistory(days: 14)
+        XCTAssertEqual(entries.map(\.title), ["Active workout"])
+    }
+
+    func test_recentHistory_returnsEmptyWhenNoActivePlan() throws {
+        // Fresh container so the setUp-created "P" plan is not present.
+        let c = try ModelContainer.beardownInMemory()
+        let p = PlanRepository(context: c.mainContext)
+        let w = WorkoutRepository(context: c.mainContext, plans: p)
+        // Create an inactive plan + workout, never activate.
+        _ = try w.upsert(.init(date: .now, title: "Archived",
+                               summary: "", blocks: [],
+                               planTitle: "Race Prep"))
+        XCTAssertNil(try p.activePlan())
+        let entries = try w.recentHistory(days: 14)
+        XCTAssertEqual(entries.count, 0)
+    }
 }
