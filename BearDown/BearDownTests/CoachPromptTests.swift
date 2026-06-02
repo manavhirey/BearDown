@@ -33,11 +33,19 @@ final class CoachPromptTests: XCTestCase {
         XCTAssertTrue(s.contains("No active plan yet."))
     }
 
-    func test_toolAddendum_mentionsPlanTitle() {
-        XCTAssertTrue(CoachPrompt.toolAddendum.contains("plan_title"),
-                      "tool addendum must instruct the model when to use plan_title")
-        XCTAssertTrue(CoachPrompt.toolAddendum.contains("new training block"),
-                      "tool addendum must frame plan_title as a new-block signal")
+    func test_toolAddendum_mentionsAllFourCalendarTools() {
+        let a = CoachPrompt.toolAddendum
+        XCTAssertTrue(a.contains("propose_plan"), "addendum must teach propose_plan")
+        XCTAssertTrue(a.contains("propose_plan_update"), "addendum must teach propose_plan_update")
+        XCTAssertTrue(a.contains("upsert_workout"), "addendum must mention upsert_workout")
+        XCTAssertTrue(a.contains("delete_workout"), "addendum must mention delete_workout")
+    }
+
+    func test_toolAddendum_describesProposalStatusReading() {
+        let a = CoachPrompt.toolAddendum
+        XCTAssertTrue(a.contains("pending"), "addendum must explain pending status")
+        XCTAssertTrue(a.contains("applied"), "addendum must explain applied status")
+        XCTAssertTrue(a.contains("dismissed"), "addendum must explain dismissed status")
     }
 
     func test_context_includesActivePlanId() {
