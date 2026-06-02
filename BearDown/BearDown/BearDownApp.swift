@@ -82,6 +82,34 @@ struct BearDownApp: App {
                 ))
             }
         }
+
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-seed-chat-history") {
+            Task { @MainActor in
+                let chats = environment.chats
+                // Ensure conversation A doesn't accidentally extend a leftover
+                // conversation from a prior test run.
+                chats.archiveCurrentConversation()
+
+                // Conversation A — older, ends earlier.
+                _ = chats.currentConversationId()
+                try? chats.append(role: .user, text: "Plan my taper week",
+                                  toolCallsJSON: nil, toolResultsJSON: nil)
+                try? chats.append(role: .assistant, text: "Taper plan ready.",
+                                  toolCallsJSON: nil, toolResultsJSON: nil)
+                chats.archiveCurrentConversation()
+
+                // Conversation B — newer.
+                _ = chats.currentConversationId()
+                try? chats.append(role: .user, text: "How heavy on Tuesday?",
+                                  toolCallsJSON: nil, toolResultsJSON: nil)
+                try? chats.append(role: .assistant, text: "Top sets at 80%.",
+                                  toolCallsJSON: nil, toolResultsJSON: nil)
+                chats.archiveCurrentConversation()
+
+                // Current conversation: empty -> filtered out of the history list.
+                _ = chats.currentConversationId()
+            }
+        }
     }
 
     var body: some Scene {
