@@ -258,6 +258,100 @@ final class CoachViewModelTests: XCTestCase {
             onApply: { _, _ in }, onDismiss: { _ in })
     }
 
+    func test_retro_groupsMultipleUpsertsWithSamePlanTitle_intoAppliedProposal() throws {
+        let calls: [[String: Any]] = (1...3).map { i in
+            ["id": "t\(i)", "name": "upsert_workout",
+             "input": ["date": "2026-06-0\(i)", "title": "W\(i)", "summary": "", "blocks": [],
+                       "plan_title": "Old Block", "plan_goal": ""]]
+        }
+        let m = ChatMessage(role: .assistant, text: "", conversationId: UUID())
+        m.toolCallsJSON = String(data: try JSONSerialization.data(withJSONObject: calls, options: [.sortedKeys]), encoding: .utf8)
+
+        let chips = CoachViewModel.computeChipsForTest(from: m)
+        let proposals = chips.compactMap { c -> ProposalChip? in
+            if case .proposal(let p) = c { return p }; return nil
+        }
+        XCTAssertEqual(proposals.count, 1)
+        XCTAssertEqual(proposals[0].envelope.status, .applied)
+        XCTAssertEqual(proposals[0].envelope.planTitle, "Old Block")
+        XCTAssertEqual(proposals[0].workoutCount, 3)
+        XCTAssertTrue(proposals[0].isRetroactive)
+    }
+
+    func test_retro_singleUpsert_doesNotEmitProposal() throws {
+        let calls: [[String: Any]] = [["id": "t1", "name": "upsert_workout",
+            "input": ["date": "2026-06-01", "title": "W", "summary": "", "blocks": [],
+                      "plan_title": "Single Plan"]]]
+        let m = ChatMessage(role: .assistant, text: "", conversationId: UUID())
+        m.toolCallsJSON = String(data: try JSONSerialization.data(withJSONObject: calls, options: [.sortedKeys]), encoding: .utf8)
+        let chips = CoachViewModel.computeChipsForTest(from: m)
+        XCTAssertTrue(chips.allSatisfy { if case .proposal = $0 { return false }; return true })
+    }
+
+    func test_retro_missingPlanTitle_emitsUpdatedPlanProposal() throws {
+        let calls: [[String: Any]] = (1...2).map { i in
+            ["id": "t\(i)", "name": "upsert_workout",
+             "input": ["date": "2026-06-0\(i)", "title": "W\(i)", "summary": "", "blocks": []]]
+        }
+        let m = ChatMessage(role: .assistant, text: "", conversationId: UUID())
+        m.toolCallsJSON = String(data: try JSONSerialization.data(withJSONObject: calls, options: [.sortedKeys]), encoding: .utf8)
+        let chips = CoachViewModel.computeChipsForTest(from: m)
+        let proposals = chips.compactMap { c -> ProposalChip? in
+            if case .proposal(let p) = c { return p }; return nil
+        }
+        XCTAssertEqual(proposals.count, 1)
+        XCTAssertEqual(proposals[0].envelope.mode, .update)
+        XCTAssertEqual(proposals[0].envelope.planTitle, "Updated plan")
+        XCTAssertEqual(proposals[0].workoutCount, 2)
+        XCTAssertEqual(proposals[0].envelope.appliedPlanId, nil)
+    }
+
+    func test_retro_doesNotEmitForNonUpsertTools() throws {
+        let calls: [[String: Any]] = [
+            ["id": "t1", "name": "delete_workout", "input": ["date": "2026-06-01"]],
+            ["id": "t2", "name": "delete_workout", "input": ["date": "2026-06-02"]],
+            ["id": "t3", "name": "get_recent_history", "input": [:]],
+        ]
+        let m = ChatMessage(role: .assistant, text: "", conversationId: UUID())
+        m.toolCallsJSON = String(data: try JSONSerialization.data(withJSONObject: calls, options: [.sortedKeys]), encoding: .utf8)
+        let chips = CoachViewModel.computeChipsForTest(from: m)
+        XCTAssertTrue(chips.allSatisfy { if case .proposal = $0 { return false }; return true })
+    }
+
+    func test_retro_doesNotApply_whenEnvelopeAlreadyPresent() throws {
+        // If a message already has a real proposal envelope, the multi-upsert path
+        // (which writes plan_id into the result string) does NOT also synthesize a
+        // virtual proposal. Otherwise we'd render two proposal chips for the same
+        // logical action.
+        let env = ProposalEnvelope(mode: .add, status: .pending, planTitle: "Real",
+            planGoal: "", planId: nil, appliedPlanId: nil, appliedAt: nil, appliedMode: nil,
+            workouts: [.init(date: .now, title: "x", summary: "", blocks: [])])
+        let envJSON = try ProposalCodec.encode(env)
+        let toolResults: [[String: Any]] = [["tool_use_id": "p", "content": envJSON]]
+        let calls: [[String: Any]] = [
+            ["id": "p", "name": "propose_plan", "input": [:]],
+            ["id": "u1", "name": "upsert_workout",
+             "input": ["date": "2026-06-01", "title": "W1", "summary": "", "blocks": [],
+                       "plan_title": "Other Block"]],
+            ["id": "u2", "name": "upsert_workout",
+             "input": ["date": "2026-06-02", "title": "W2", "summary": "", "blocks": [],
+                       "plan_title": "Other Block"]],
+        ]
+        let m = ChatMessage(role: .assistant, text: "", conversationId: UUID())
+        m.toolResultsJSON = String(data: try JSONSerialization.data(withJSONObject: toolResults, options: [.sortedKeys]), encoding: .utf8)
+        m.toolCallsJSON = String(data: try JSONSerialization.data(withJSONObject: calls, options: [.sortedKeys]), encoding: .utf8)
+
+        let chips = CoachViewModel.computeChipsForTest(from: m)
+        let proposals = chips.compactMap { c -> ProposalChip? in
+            if case .proposal(let p) = c { return p }; return nil
+        }
+        // One real proposal + one retroactive group for "Other Block".
+        XCTAssertEqual(proposals.count, 2)
+        XCTAssertEqual(proposals[0].envelope.status, .pending)
+        XCTAssertEqual(proposals[1].envelope.status, .applied)
+        XCTAssertTrue(proposals[1].isRetroactive)
+    }
+
     func test_refresh_afterSwitchConversation_loadsTheSwitchedConversation() throws {
         // Seed two conversations directly through env.chats.
         let a = env.chats.currentConversationId()

@@ -93,25 +93,31 @@ public final class CoachViewModel: ObservableObject {
     }
 
     private static func computeChips(from m: ChatMessage) -> [CoachChip] {
-        var proposalChips: [CoachChip] = []
-        var switchChips: [CoachChip] = []
-        var workoutChips: [CoachChip] = []
-        var seenPlanIds = Set<UUID>()
-
-        // Pass 1 — tool results. Try envelope decode; fall back to plan-switch parser.
+        // Decode tool results once.
         var resultsArr: [[String: Any]] = []
         if let raw = m.toolResultsJSON,
            let arr = try? JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [[String: Any]] {
             resultsArr = arr
         }
+        // Decode tool calls once.
+        var callsArr: [[String: Any]] = []
+        if let raw = m.toolCallsJSON,
+           let arr = try? JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [[String: Any]] {
+            callsArr = arr
+        }
+
+        // Pass 1 — real proposals (decoded envelopes).
+        var proposalChips: [CoachChip] = []
+        var switchChips: [CoachChip] = []
+        var seenPlanIds = Set<UUID>()
+
         for dict in resultsArr {
             guard let content = dict["content"] as? String else { continue }
             if let env = ProposalCodec.decode(contentString: content) {
                 let toolUseId = (dict["tool_use_id"] as? String) ?? ""
-                let id = "\(m.id.uuidString)-\(toolUseId)"
                 let dates = env.workouts.map(\.date).sorted()
                 proposalChips.append(.proposal(ProposalChip(
-                    id: id,
+                    id: "\(m.id.uuidString)-\(toolUseId)",
                     messageId: m.id,
                     toolUseId: toolUseId,
                     envelope: env,
@@ -122,55 +128,96 @@ public final class CoachViewModel: ObservableObject {
                 )))
             } else if let parsed = parsePlanSwitchMarker(in: content),
                       seenPlanIds.insert(parsed.id).inserted {
-                let tc = ChatBubble.ToolChip(
+                switchChips.append(.planSwitch(.init(
                     id: "switch-\(parsed.id.uuidString)",
                     label: "Switch to: \(parsed.title)",
                     isError: false,
                     workoutDate: nil,
                     planId: parsed.id
-                )
-                switchChips.append(.planSwitch(tc))
+                )))
             }
         }
 
-        // Pass 2 — tool calls.
-        if let raw = m.toolCallsJSON,
-           let arr = try? JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [[String: Any]] {
-            for dict in arr {
-                let id = (dict["id"] as? String) ?? UUID().uuidString
-                let name = (dict["name"] as? String) ?? "?"
-                let input = (dict["input"] as? [String: Any]) ?? [:]
-                switch name {
-                case "upsert_workout":
-                    let date = input["date"] as? String ?? "?"
-                    let title = input["title"] as? String ?? "Workout"
-                    workoutChips.append(.workout(.init(
-                        id: id,
-                        label: "Scheduled \(title) — \(date)",
-                        isError: false,
-                        workoutDate: parseIso(date)
-                    )))
-                case "delete_workout":
-                    let date = input["date"] as? String ?? "?"
-                    workoutChips.append(.workout(.init(
-                        id: id,
-                        label: "Deleted workout on \(date)",
-                        isError: false,
-                        workoutDate: parseIso(date)
-                    )))
-                case "get_recent_history":
-                    workoutChips.append(.workout(.init(
-                        id: id, label: "Reviewed recent history",
-                        isError: false, workoutDate: nil
-                    )))
-                case "propose_plan", "propose_plan_update":
-                    break  // surfaced via proposalChips above
-                default:
-                    workoutChips.append(.workout(.init(
-                        id: id, label: "Called \(name)",
-                        isError: false, workoutDate: nil
-                    )))
+        // Pass 2 — retroactive grouping. Group upsert_workout calls in this message
+        // by `plan_title`. Groups of size >= 2 collapse into a virtual applied-state
+        // proposal chip. Singletons fall through to per-workout rendering.
+        struct RetroGroup { var title: String?; var calls: [(id: String, input: [String: Any])] }
+        var groups: [String: RetroGroup] = [:]   // key = plan_title or "" for none
+        var absorbedToolUseIds = Set<String>()
+        for dict in callsArr {
+            guard (dict["name"] as? String) == "upsert_workout" else { continue }
+            let id = (dict["id"] as? String) ?? ""
+            let input = (dict["input"] as? [String: Any]) ?? [:]
+            let title = (input["plan_title"] as? String).flatMap {
+                let t = $0.trimmingCharacters(in: .whitespaces)
+                return t.isEmpty ? nil : t
+            }
+            let key = title ?? ""
+            groups[key, default: RetroGroup(title: title, calls: [])].calls.append((id, input))
+        }
+        for (_, group) in groups where group.calls.count >= 2 {
+            let title = group.title ?? "Updated plan"
+            let mode: ProposalEnvelope.Mode = (group.title == nil) ? .update : .add
+            let goal = (group.calls.first?.input["plan_goal"] as? String) ?? ""
+            let dates = group.calls.compactMap { ($0.input["date"] as? String).flatMap(parseIso) }.sorted()
+            let envelope = ProposalEnvelope(
+                mode: mode, status: .applied,
+                planTitle: title, planGoal: goal,
+                planId: nil,
+                appliedPlanId: nil,             // resolved by caller via PlanRepository.plan(title:) — see Task 19
+                appliedAt: nil,
+                appliedMode: (mode == .update ? .update : .switchPlan),
+                workouts: group.calls.compactMap { call -> ProposalWorkout? in
+                    guard let dateStr = call.input["date"] as? String,
+                          let date = parseIso(dateStr) else { return nil }
+                    return ProposalWorkout(
+                        date: date,
+                        title: (call.input["title"] as? String) ?? "",
+                        summary: (call.input["summary"] as? String) ?? "",
+                        blocks: []   // we don't try to reconstruct blocks; the chip only uses count + dates
+                    )
                 }
+            )
+            let chipId = "retro-\(m.id.uuidString)-\(title.hashValue)"
+            proposalChips.append(.proposal(ProposalChip(
+                id: chipId, messageId: m.id, toolUseId: "retro",
+                envelope: envelope,
+                workoutCount: group.calls.count,
+                firstDate: dates.first, lastDate: dates.last,
+                isRetroactive: true
+            )))
+            for c in group.calls { absorbedToolUseIds.insert(c.id) }
+        }
+
+        // Pass 3 — workout/per-call chips. Skip anything absorbed by retroactive grouping.
+        var workoutChips: [CoachChip] = []
+        for dict in callsArr {
+            let id = (dict["id"] as? String) ?? UUID().uuidString
+            let name = (dict["name"] as? String) ?? "?"
+            let input = (dict["input"] as? [String: Any]) ?? [:]
+            switch name {
+            case "upsert_workout":
+                if absorbedToolUseIds.contains(id) { continue }
+                let date = input["date"] as? String ?? "?"
+                let title = input["title"] as? String ?? "Workout"
+                workoutChips.append(.workout(.init(
+                    id: id, label: "Scheduled \(title) — \(date)",
+                    isError: false, workoutDate: parseIso(date))))
+            case "delete_workout":
+                let date = input["date"] as? String ?? "?"
+                workoutChips.append(.workout(.init(
+                    id: id, label: "Deleted workout on \(date)",
+                    isError: false, workoutDate: parseIso(date))))
+            case "get_recent_history":
+                workoutChips.append(.workout(.init(
+                    id: id, label: "Reviewed recent history",
+                    isError: false, workoutDate: nil)))
+            case "propose_plan", "propose_plan_update":
+                break
+            default:
+                workoutChips.append(.workout(.init(
+                    id: id, label: "Called \(name)",
+                    isError: false, workoutDate: nil)))
             }
         }
 
