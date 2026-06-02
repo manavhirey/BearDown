@@ -93,17 +93,35 @@ public final class CoachViewModel: ObservableObject {
     }
 
     private static func computeChips(from m: ChatMessage) -> [CoachChip] {
+        var proposalChips: [CoachChip] = []
         var switchChips: [CoachChip] = []
         var workoutChips: [CoachChip] = []
         var seenPlanIds = Set<UUID>()
 
-        // Tool result → plan-switch chips, dedup'd per plan id.
+        // Pass 1 — tool results. Try envelope decode; fall back to plan-switch parser.
+        var resultsArr: [[String: Any]] = []
         if let raw = m.toolResultsJSON,
            let arr = try? JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [[String: Any]] {
-            for dict in arr {
-                guard let content = dict["content"] as? String,
-                      let parsed = parsePlanSwitchMarker(in: content),
-                      seenPlanIds.insert(parsed.id).inserted else { continue }
+            resultsArr = arr
+        }
+        for dict in resultsArr {
+            guard let content = dict["content"] as? String else { continue }
+            if let env = ProposalCodec.decode(contentString: content) {
+                let toolUseId = (dict["tool_use_id"] as? String) ?? ""
+                let id = "\(m.id.uuidString)-\(toolUseId)"
+                let dates = env.workouts.map(\.date).sorted()
+                proposalChips.append(.proposal(ProposalChip(
+                    id: id,
+                    messageId: m.id,
+                    toolUseId: toolUseId,
+                    envelope: env,
+                    workoutCount: env.workouts.count,
+                    firstDate: dates.first,
+                    lastDate: dates.last,
+                    isRetroactive: false
+                )))
+            } else if let parsed = parsePlanSwitchMarker(in: content),
+                      seenPlanIds.insert(parsed.id).inserted {
                 let tc = ChatBubble.ToolChip(
                     id: "switch-\(parsed.id.uuidString)",
                     label: "Switch to: \(parsed.title)",
@@ -115,7 +133,7 @@ public final class CoachViewModel: ObservableObject {
             }
         }
 
-        // Tool calls → per-workout chips (existing behavior).
+        // Pass 2 — tool calls.
         if let raw = m.toolCallsJSON,
            let arr = try? JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [[String: Any]] {
             for dict in arr {
@@ -146,9 +164,7 @@ public final class CoachViewModel: ObservableObject {
                         isError: false, workoutDate: nil
                     )))
                 case "propose_plan", "propose_plan_update":
-                    // Tool-call chip is suppressed here; the proposal chip emitted from
-                    // the tool result (handled in Task 14) is the visible surface.
-                    break
+                    break  // surfaced via proposalChips above
                 default:
                     workoutChips.append(.workout(.init(
                         id: id, label: "Called \(name)",
@@ -158,7 +174,7 @@ public final class CoachViewModel: ObservableObject {
             }
         }
 
-        return switchChips + workoutChips
+        return proposalChips + switchChips + workoutChips
     }
 
     /// Parses `... in plan "<title>" (plan_id=<uuid>).` out of a tool result string.

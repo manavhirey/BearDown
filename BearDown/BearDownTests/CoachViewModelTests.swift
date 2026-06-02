@@ -149,6 +149,91 @@ final class CoachViewModelTests: XCTestCase {
         XCTAssertEqual(switchChips.count, 1)
     }
 
+    func test_computeChips_emitsProposalChip_forAddEnvelope() throws {
+        let env = ProposalEnvelope(
+            mode: .add, status: .pending,
+            planTitle: "Race Prep", planGoal: "",
+            planId: nil, appliedPlanId: nil, appliedAt: nil, appliedMode: nil,
+            workouts: [.init(date: dateFromIso("2026-06-03"),
+                             title: "Push", summary: "", blocks: [])]
+        )
+        let envJSON = try ProposalCodec.encode(env)
+        let toolResults: [[String: Any]] = [["tool_use_id": "toolu_1", "content": envJSON]]
+        let toolCalls: [[String: Any]] = [["id": "toolu_1", "name": "propose_plan",
+                                           "input": [:]]]
+        let m = ChatMessage(role: .assistant, text: "Here's the block.", conversationId: UUID())
+        m.toolResultsJSON = String(data: try JSONSerialization.data(withJSONObject: toolResults, options: [.sortedKeys]), encoding: .utf8)
+        m.toolCallsJSON = String(data: try JSONSerialization.data(withJSONObject: toolCalls, options: [.sortedKeys]), encoding: .utf8)
+
+        let chips = CoachViewModel.computeChipsForTest(from: m)
+        XCTAssertEqual(chips.count, 1)
+        guard case let .proposal(p) = chips[0] else {
+            return XCTFail("expected .proposal; got \(chips[0])")
+        }
+        XCTAssertEqual(p.envelope.mode, .add)
+        XCTAssertEqual(p.envelope.status, .pending)
+        XCTAssertEqual(p.envelope.planTitle, "Race Prep")
+        XCTAssertEqual(p.workoutCount, 1)
+        XCTAssertEqual(p.messageId, m.id)
+        XCTAssertEqual(p.toolUseId, "toolu_1")
+    }
+
+    func test_computeChips_proposalChip_sortsAboveWorkoutChips() throws {
+        let env = ProposalEnvelope(
+            mode: .add, status: .pending, planTitle: "X", planGoal: "",
+            planId: nil, appliedPlanId: nil, appliedAt: nil, appliedMode: nil,
+            workouts: [.init(date: .now, title: "x", summary: "", blocks: [])]
+        )
+        let envJSON = try ProposalCodec.encode(env)
+        let toolResults: [[String: Any]] = [["tool_use_id": "p1", "content": envJSON],
+                                             ["tool_use_id": "u1", "content": "Scheduled X for 2026-06-08."]]
+        let toolCalls: [[String: Any]] = [["id": "p1", "name": "propose_plan", "input": [:]],
+                                           ["id": "u1", "name": "upsert_workout",
+                                            "input": ["date": "2026-06-08", "title": "X", "summary": "", "blocks": []]]]
+        let m = ChatMessage(role: .assistant, text: "", conversationId: UUID())
+        m.toolResultsJSON = String(data: try JSONSerialization.data(withJSONObject: toolResults, options: [.sortedKeys]), encoding: .utf8)
+        m.toolCallsJSON = String(data: try JSONSerialization.data(withJSONObject: toolCalls, options: [.sortedKeys]), encoding: .utf8)
+
+        let chips = CoachViewModel.computeChipsForTest(from: m)
+        XCTAssertEqual(chips.count, 2)
+        guard case .proposal = chips[0] else { return XCTFail("proposal must sort first") }
+        guard case .workout = chips[1] else { return XCTFail("workout must sort after") }
+    }
+
+    func test_computeChips_fallsBackToPlainText_whenEnvelopeMalformed() throws {
+        let toolResults: [[String: Any]] = [["tool_use_id": "x", "content": "not json {{{"]]
+        let m = ChatMessage(role: .assistant, text: "", conversationId: UUID())
+        m.toolResultsJSON = String(data: try JSONSerialization.data(withJSONObject: toolResults, options: [.sortedKeys]), encoding: .utf8)
+        let chips = CoachViewModel.computeChipsForTest(from: m)
+        XCTAssertTrue(chips.allSatisfy { if case .proposal = $0 { return false }; return true })
+    }
+
+    func test_computeChips_appliedEnvelope_carriesAppliedStatus() throws {
+        let pid = UUID()
+        let env = ProposalEnvelope(
+            mode: .add, status: .applied, planTitle: "X", planGoal: "",
+            planId: nil, appliedPlanId: pid, appliedAt: .now, appliedMode: .switchPlan,
+            workouts: [.init(date: .now, title: "x", summary: "", blocks: [])]
+        )
+        let envJSON = try ProposalCodec.encode(env)
+        let toolResults: [[String: Any]] = [["tool_use_id": "t", "content": envJSON]]
+        let m = ChatMessage(role: .assistant, text: "", conversationId: UUID())
+        m.toolResultsJSON = String(data: try JSONSerialization.data(withJSONObject: toolResults, options: [.sortedKeys]), encoding: .utf8)
+        m.toolCallsJSON = String(data: try JSONSerialization.data(withJSONObject: [["id": "t", "name": "propose_plan", "input": [:]]], options: [.sortedKeys]), encoding: .utf8)
+
+        let chips = CoachViewModel.computeChipsForTest(from: m)
+        guard case let .proposal(p) = chips[0] else { return XCTFail("expected proposal") }
+        XCTAssertEqual(p.envelope.status, .applied)
+        XCTAssertEqual(p.envelope.appliedPlanId, pid)
+        XCTAssertEqual(p.envelope.appliedMode, .switchPlan)
+    }
+
+    private func dateFromIso(_ s: String) -> Date {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withFullDate]
+        return f.date(from: s)!
+    }
+
     func test_refresh_afterSwitchConversation_loadsTheSwitchedConversation() throws {
         // Seed two conversations directly through env.chats.
         let a = env.chats.currentConversationId()
