@@ -84,3 +84,25 @@ Run these on a real device before each TestFlight build. The XCUITest suite cove
 5. **CloudKit cross-device sync.** On device B, send messages on a new conversation. On device A, open HISTORY and pull-to-refresh. The new conversation appears within ~10s.
 
 6. **HISTORY is disabled during streaming.** Send a message that triggers a long agent reply. While the stream is in progress, confirm HISTORY's label is greyed and untappable. After the stream completes, HISTORY re-enables.
+
+## Approval gate
+
+Goal: confirm that block-scale Coach output is gated behind an explicit Apply / Dismiss tap, while in-block adjustments still write immediately.
+
+1. Open Coach. Send "give me a 4-week race prep block targeting June 24."
+2. Wait for streaming to finish. Confirm a tall pill chip appears with:
+   - Top row: "PROPOSED PLAN: <title>"
+   - Sub-row: "<N> WORKOUTS · <date range>"
+   - Three buttons: ADD AS INACTIVE / ADD & SWITCH / DISMISS
+3. Switch to Today and to Plans. Confirm no new plan or workouts exist yet.
+4. Return to Coach. Tap DISMISS. Confirm the chip transitions to a struck-through dismissed state with no buttons.
+5. Ask again: "alright, propose it again as a 1-week block." Wait for the new proposal.
+6. Tap ADD AS INACTIVE. Confirm:
+   - The chip transitions to the applied state ("APPLIED: …").
+   - Plans tab shows the new plan listed as inactive, with the original active plan unchanged.
+7. Open Coach again. Ask for a multi-day adjustment to the active plan ("rewrite Thu/Fri/Sat to be hypertrophy-focused"). Confirm a `propose_plan_update` chip appears with UPDATE PLAN / DISMISS only.
+8. Tap UPDATE PLAN. Confirm the active plan's workouts on those dates are replaced (Today's preview reflects the new entries) and the chip shows applied state.
+9. Ask for a single-workout change ("move Tuesday's run to Wednesday"). Confirm the coach uses `upsert_workout` (no proposal chip — the change is immediate). The chat shows a small scheduled-workout chip; Today reflects the change immediately.
+10. Tap the applied proposal chip in chat — confirm it deep-links to the corresponding plan in the Plans tab.
+11. Force-quit and relaunch the app. Confirm all applied/dismissed chip states persist (the writeback is real, not in-memory only).
+12. Scroll back to chat messages from before this feature (or from a `--ui-test-seed-two-plans` baseline that uses immediate writes) — confirm groups of `upsert_workout` calls with the same plan title now render as a single Applied-style chip with the plan title and workout count.

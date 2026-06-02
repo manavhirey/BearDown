@@ -201,6 +201,15 @@ PlanDetailView(plan: plan)
 
 The parent `PlansListView` provides the plan via the `NavigationStack`'s typed path (`PlansRoute.detail(planId:)`). Don't refactor `PlanDetailView` back to an env-based init — the whole point of the rename was so it could be reused for any plan regardless of active state.
 
+### 13. Tool-result strings carry one of two formats — detect by JSON shape
+
+Today's `toolResultsJSON` array contains entries whose `content` is either:
+
+1. **Plain text** (immediate-write tools — `upsert_workout`, `delete_workout`, `get_recent_history`). Parsed by `parsePlanSwitchMarker(in:)` for the `plan_id=` marker.
+2. **JSON envelope** with `schema: "bd.proposal/v1"` (proposal tools — `propose_plan`, `propose_plan_update`). Decoded by `ProposalCodec.decode(contentString:)`.
+
+When extending `CoachViewModel.computeChips`, always try envelope decode first; fall back to plain-text marker parsing only if `decode(contentString:)` returns `nil`. Don't introduce a third format — bump the schema version (`bd.proposal/v2`) and extend the decoder. Documented in `docs/superpowers/specs/2026-06-02-approval-gate-design.md`.
+
 ## Architecture pointers
 
 - **Repositories are the only layer touching `ModelContext`.** Views and view models go through `PlanRepository`, `WorkoutRepository`, `ChatRepository`. Don't add `@Query` in views; query through repos.
@@ -212,6 +221,7 @@ The parent `PlansListView` provides the plan via the `NavigationStack`'s typed p
 - **`AppNavigation`** is the cross-tab navigation observable (selected tab + `focusedDate` for chip-tap navigation from Coach to Today).
 - **ViewModels load data via `.onAppear`, not from `init()`.** Each `*ViewModel.init` is intentionally cheap — no repo calls, no `refresh()`. The owning view triggers the first load via `.onAppear { vm.refresh() }` (also runs on tab-switch returns). Don't reintroduce `refresh()` calls into VM inits — they'd double-fetch on every first appearance. Established in commit `947a16b`.
 - **`CoachViewModel.chips(for:)` is the entry point for tool-call chip rendering.** Chips are pre-computed during `refresh()` and cached in `chipCache: [UUID: [ChatBubble.ToolChip]]`. The view does O(1) lookup. If you add a new agent tool, update `CoachViewModel.computeChips(from:)` (not the view) to format its chip.
+- **Two paths into SwiftData from the agent:** immediate-write (`upsert_workout` / `delete_workout` → `WorkoutRepository.upsert` / `delete`) for in-block adjustments, and proposal-gated (`propose_plan` / `propose_plan_update` → envelope in `ChatMessage.toolResultsJSON` → user tap → `ProposalApplyService.apply(...)` → repositories). Never invent a third path; if you add a multi-workout tool, route it through `ProposalApplyService` so the user-visible chip stays consistent.
 
 ## What worked well during initial build
 
@@ -243,6 +253,9 @@ All paths below are from the repo root. The `BearDown/BearDown/...` prefix refle
 | Add a tab, change navigation, or push a plan detail from elsewhere | `BearDown/BearDown/Views/Shared/RootView.swift`, `BearDown/BearDown/App/AppNavigation.swift` (`focusedDate`, `pendingPlanDetail`), `BearDown/BearDown/Views/Plan/PlansListView.swift` (`PlansRoute`) |
 | Add a new operation on plans (rename, archive without delete, etc.) | `BearDown/BearDown/Persistence/PlanRepository.swift`, expose to UI via `PlansListViewModel`/`PlanDetailViewModel` |
 | Add or change chat-history navigation | `BearDown/BearDown/Views/Coach/CoachView.swift` (HISTORY toolbar + `CoachRoute`) + `BearDown/BearDown/Views/Coach/ChatHistoryView.swift` + `BearDown/BearDown/Persistence/ChatRepository.swift` (`conversations()`, `switchConversation(to:)`, `deleteConversation(id:)`) |
+| Change the proposal envelope shape | `BearDown/BearDown/Coach/ProposalEnvelope.swift` + `BearDown/BearDown/Coach/ProposalCodec.swift` (bump `schemaVersion` if breaking) |
+| Apply a proposal to SwiftData | `BearDown/BearDown/Coach/ProposalApplyService.swift` |
+| Adjust proposal chip visuals | `BearDown/BearDown/Views/Coach/ProposalChipView.swift` |
 | Run UI tests reliably | Open the project in Xcode and use ⌘U; `xcodebuild test -only-testing:BearDownUITests` is flaky |
 
 ## Style preferences
