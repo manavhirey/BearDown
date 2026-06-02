@@ -127,4 +127,25 @@ final class CoachViewModelTests: XCTestCase {
         let switchChips = chips.filter { $0.planId != nil }
         XCTAssertEqual(switchChips.count, 1, "3 workouts -> 1 dedup'd switch chip")
     }
+
+    func test_refresh_afterSwitchConversation_loadsTheSwitchedConversation() throws {
+        // Seed two conversations directly through env.chats.
+        let a = env.chats.currentConversationId()
+        try env.chats.append(role: .user, text: "from A", toolCallsJSON: nil, toolResultsJSON: nil)
+        try env.chats.append(role: .assistant, text: "reply A", toolCallsJSON: nil, toolResultsJSON: nil)
+        env.chats.archiveCurrentConversation()
+        let b = env.chats.currentConversationId()
+        try env.chats.append(role: .user, text: "from B", toolCallsJSON: nil, toolResultsJSON: nil)
+        try env.chats.append(role: .assistant, text: "reply B", toolCallsJSON: nil, toolResultsJSON: nil)
+
+        let vm = CoachViewModel(env: env)
+        vm.refresh()
+        XCTAssertEqual(vm.messages.map(\.text), ["from B", "reply B"])
+
+        // Simulate the user picking conversation A in the history view.
+        env.chats.switchConversation(to: a)
+        vm.refresh()
+        XCTAssertEqual(vm.messages.map(\.text), ["from A", "reply A"])
+        XCTAssertNotEqual(a, b)
+    }
 }
