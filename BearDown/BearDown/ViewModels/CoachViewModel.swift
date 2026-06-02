@@ -45,32 +45,93 @@ public final class CoachViewModel: ObservableObject {
         chipCache[message.id] ?? []
     }
 
+    // Test seam — same body as the real computeChips, mirrors its signature.
+    internal static func computeChipsForTest(from m: ChatMessage) -> [ChatBubble.ToolChip] {
+        computeChips(from: m)
+    }
+
     private static func computeChips(from m: ChatMessage) -> [ChatBubble.ToolChip] {
-        guard let raw = m.toolCallsJSON,
-              let arr = try? JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [[String: Any]]
-        else { return [] }
-        return arr.compactMap { dict in
-            let id = (dict["id"] as? String) ?? UUID().uuidString
-            let name = (dict["name"] as? String) ?? "?"
-            let input = (dict["input"] as? [String: Any]) ?? [:]
-            switch name {
-            case "upsert_workout":
-                let date = input["date"] as? String ?? "?"
-                let title = input["title"] as? String ?? "Workout"
-                return .init(id: id, label: "Scheduled \(title) — \(date)",
-                             isError: false, workoutDate: parseIso(date))
-            case "delete_workout":
-                let date = input["date"] as? String ?? "?"
-                return .init(id: id, label: "Deleted workout on \(date)",
-                             isError: false, workoutDate: parseIso(date))
-            case "get_recent_history":
-                return .init(id: id, label: "Reviewed recent history",
-                             isError: false, workoutDate: nil)
-            default:
-                return .init(id: id, label: "Called \(name)",
-                             isError: false, workoutDate: nil)
+        var switchChips: [ChatBubble.ToolChip] = []
+        var workoutChips: [ChatBubble.ToolChip] = []
+        var seenPlanIds = Set<UUID>()
+
+        // Tool result → plan-switch chips, dedup'd per plan id.
+        if let raw = m.toolResultsJSON,
+           let arr = try? JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [[String: Any]] {
+            for dict in arr {
+                guard let content = dict["content"] as? String,
+                      let parsed = parsePlanSwitchMarker(in: content),
+                      seenPlanIds.insert(parsed.id).inserted else { continue }
+                switchChips.append(.init(
+                    id: "switch-\(parsed.id.uuidString)",
+                    label: "Switch to: \(parsed.title)",
+                    isError: false,
+                    workoutDate: nil,
+                    planId: parsed.id
+                ))
             }
         }
+
+        // Tool calls → per-workout chips (existing behavior).
+        if let raw = m.toolCallsJSON,
+           let arr = try? JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [[String: Any]] {
+            for dict in arr {
+                let id = (dict["id"] as? String) ?? UUID().uuidString
+                let name = (dict["name"] as? String) ?? "?"
+                let input = (dict["input"] as? [String: Any]) ?? [:]
+                switch name {
+                case "upsert_workout":
+                    let date = input["date"] as? String ?? "?"
+                    let title = input["title"] as? String ?? "Workout"
+                    workoutChips.append(.init(
+                        id: id,
+                        label: "Scheduled \(title) — \(date)",
+                        isError: false,
+                        workoutDate: parseIso(date)
+                    ))
+                case "delete_workout":
+                    let date = input["date"] as? String ?? "?"
+                    workoutChips.append(.init(
+                        id: id,
+                        label: "Deleted workout on \(date)",
+                        isError: false,
+                        workoutDate: parseIso(date)
+                    ))
+                case "get_recent_history":
+                    workoutChips.append(.init(
+                        id: id, label: "Reviewed recent history",
+                        isError: false, workoutDate: nil
+                    ))
+                default:
+                    workoutChips.append(.init(
+                        id: id, label: "Called \(name)",
+                        isError: false, workoutDate: nil
+                    ))
+                }
+            }
+        }
+
+        return switchChips + workoutChips
+    }
+
+    /// Parses `... in plan "<title>" (plan_id=<uuid>).` out of a tool result string.
+    /// Returns nil if the marker is absent (the common case — writes to the active plan).
+    private static func parsePlanSwitchMarker(in content: String) -> (id: UUID, title: String)? {
+        guard let idRange = content.range(of: "plan_id=") else { return nil }
+        let after = content[idRange.upperBound...]
+        let uuidStr = after.prefix(36)
+        guard uuidStr.count == 36, let id = UUID(uuidString: String(uuidStr)) else { return nil }
+
+        // Title sits between the first `in plan "` and the next `"`.
+        guard let titleStart = content.range(of: "in plan \"") else {
+            return (id, "plan")
+        }
+        let titleTail = content[titleStart.upperBound...]
+        guard let titleEnd = titleTail.range(of: "\"") else {
+            return (id, "plan")
+        }
+        let title = String(titleTail[..<titleEnd.lowerBound])
+        return (id, title)
     }
 
     private static func parseIso(_ s: String) -> Date? {
