@@ -7,11 +7,12 @@ public enum CoachRoute: Hashable {
 public struct CoachView: View {
     @StateObject private var vm: CoachViewModel
     @EnvironmentObject private var env: AppEnvironment
-    @EnvironmentObject private var nav: AppNavigation
+    private let nav: AppNavigation
     @State private var path = NavigationPath()
 
-    public init(env: AppEnvironment) {
-        _vm = StateObject(wrappedValue: CoachViewModel(env: env))
+    public init(env: AppEnvironment, nav: AppNavigation) {
+        self.nav = nav
+        _vm = StateObject(wrappedValue: CoachViewModel(env: env, nav: nav))
     }
 
     public var body: some View {
@@ -87,20 +88,31 @@ public struct CoachView: View {
                 LazyVStack(alignment: .leading, spacing: 22) {
                     pageHeader
                     ForEach(vm.messages) { m in
-                        ChatBubble(role: m.role,
-                                   text: m.text,
-                                   toolChips: vm.chips(for: m),
-                                   onChipTap: { chip in
-                                       if let planId = chip.planId {
-                                           try? env.plans.activate(planId: planId)
-                                           nav.selectedTab = 1
-                                           nav.pendingPlanDetail = planId
-                                       } else if let d = chip.workoutDate {
-                                           nav.focusedDate = d
-                                           nav.selectedTab = 0
-                                       }
-                                   })
-                            .id(m.id)
+                        ChatBubble(
+                            role: m.role,
+                            text: m.text,
+                            toolChips: vm.chips(for: m),
+                            onChipTap: { chip in
+                                if let planId = chip.planId {
+                                    try? env.plans.activate(planId: planId)
+                                    nav.selectedTab = 1
+                                    nav.pendingPlanDetail = planId
+                                } else if let d = chip.workoutDate {
+                                    nav.focusedDate = d
+                                    nav.selectedTab = 0
+                                }
+                            },
+                            onApplyProposal: { chip, mode in
+                                Task { await vm.applyProposal(chip, mode: mode) }
+                            },
+                            onDismissProposal: { chip in
+                                vm.dismissProposal(chip)
+                            },
+                            onProposalAppliedTap: { chip in
+                                vm.navigateToAppliedProposal(chip)
+                            }
+                        )
+                        .id(m.id)
                     }
                     if vm.state == .streaming && !vm.liveAssistantText.isEmpty {
                         ChatBubble(role: .assistant, text: vm.liveAssistantText + "▍")

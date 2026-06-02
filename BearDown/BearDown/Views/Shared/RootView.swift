@@ -17,7 +17,7 @@ public struct RootView: View {
                     PlansListView(env: env)
                         .tabItem { Label("Plan", systemImage: "list.bullet.rectangle") }
                         .tag(1)
-                    CoachView(env: env)
+                    CoachView(env: env, nav: nav)
                         .tabItem { Label("Coach", systemImage: "bubble.left.and.bubble.right") }
                         .tag(2)
                     SettingsView(env: env)
