@@ -201,4 +201,31 @@ final class ChatRepositoryTests: XCTestCase {
         XCTAssertEqual(try repo.messages(in: a).count, 1, "untouched")
         XCTAssertEqual(repo.currentConversationId(), a, "current id unchanged")
     }
+
+    func test_replaceToolResults_updatesTargetMessage() throws {
+        let cid = repo.currentConversationId()
+        try repo.append(role: .assistant, text: "x",
+                        toolCallsJSON: nil, toolResultsJSON: #"[{"a":1}]"#)
+        let msg = try repo.messages(in: cid).first!
+        try repo.replaceToolResults(messageId: msg.id, newJSON: #"[{"b":2}]"#)
+        let refetched = try repo.messages(in: cid).first!
+        XCTAssertEqual(refetched.toolResultsJSON, #"[{"b":2}]"#)
+    }
+
+    func test_replaceToolResults_throwsWhenMessageNotFound() {
+        XCTAssertThrowsError(try repo.replaceToolResults(messageId: UUID(),
+                                                         newJSON: "[]"))
+    }
+
+    func test_replaceToolResults_isIdempotent() throws {
+        let cid = repo.currentConversationId()
+        let json = #"[{"a":1}]"#
+        try repo.append(role: .assistant, text: "x",
+                        toolCallsJSON: nil, toolResultsJSON: json)
+        let msg = try repo.messages(in: cid).first!
+        try repo.replaceToolResults(messageId: msg.id, newJSON: json)
+        try repo.replaceToolResults(messageId: msg.id, newJSON: json)
+        let refetched = try repo.messages(in: cid).first!
+        XCTAssertEqual(refetched.toolResultsJSON, json)
+    }
 }

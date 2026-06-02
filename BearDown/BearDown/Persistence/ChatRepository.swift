@@ -131,4 +131,14 @@ public final class ChatRepository {
             cachedConversationId = UUID()
         }
     }
+
+    public func replaceToolResults(messageId: UUID, newJSON: String) throws {
+        let rows = try context.fetch(FetchDescriptor<ChatMessage>(
+            predicate: #Predicate { $0.id == messageId }
+        ))
+        guard let m = rows.first else { throw RepositoryError.workoutNotFound }
+        if m.toolResultsJSON == newJSON { return }   // idempotent
+        m.toolResultsJSON = newJSON
+        try context.save()
+    }
 }
