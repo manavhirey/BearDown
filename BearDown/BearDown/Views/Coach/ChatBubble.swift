@@ -11,9 +11,15 @@ public struct ChatBubble: View {
         public let label: String
         public let isError: Bool
         public let workoutDate: Date?
+        public let planId: UUID?
 
-        public init(id: String, label: String, isError: Bool, workoutDate: Date?) {
-            self.id = id; self.label = label; self.isError = isError; self.workoutDate = workoutDate
+        public init(id: String, label: String, isError: Bool,
+                    workoutDate: Date?, planId: UUID? = nil) {
+            self.id = id
+            self.label = label
+            self.isError = isError
+            self.workoutDate = workoutDate
+            self.planId = planId
         }
     }
 
@@ -96,7 +102,16 @@ public struct ChatBubble: View {
         .padding(.top, 2)
     }
 
+    @ViewBuilder
     private func editorialChip(_ chip: ToolChip) -> some View {
+        if chip.planId != nil {
+            switchPlanChip(chip)
+        } else {
+            workoutChip(chip)
+        }
+    }
+
+    private func workoutChip(_ chip: ToolChip) -> some View {
         let tint: Color = chip.isError ? .red : .primary
         return HStack(spacing: 6) {
             Image(systemName: chip.isError ? "exclamationmark.triangle.fill" : "calendar")
@@ -118,6 +133,20 @@ public struct ChatBubble: View {
                 lineWidth: 1
             )
         )
+    }
+
+    private func switchPlanChip(_ chip: ToolChip) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.right.circle.fill")
+                .font(.callout.weight(.bold))
+            Text(chip.label.uppercased())
+                .font(BDStyle.monoSmall)
+                .tracking(BDStyle.trackingWide)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 8)
+        .foregroundStyle(Color(.systemBackground))
+        .background(Color.primary, in: Capsule())
     }
 }
 
