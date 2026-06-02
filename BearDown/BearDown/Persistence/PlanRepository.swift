@@ -4,9 +4,11 @@ import SwiftData
 @MainActor
 public final class PlanRepository {
     private let context: ModelContext
+    private let onCancel: CancelHook?
 
-    public init(context: ModelContext) {
+    public init(context: ModelContext, onCancel: CancelHook? = nil) {
         self.context = context
+        self.onCancel = onCancel
     }
 
     public func activePlan() throws -> TrainingPlan? {
@@ -45,6 +47,14 @@ public final class PlanRepository {
             plan.updatedAt = .now
             try context.save()
         }
+    }
+
+    public func delete(planId: UUID) throws {
+        guard let target = try plan(id: planId) else { return }
+        let workoutIds = target.workouts.map(\.id)
+        context.delete(target)
+        try context.save()
+        if let onCancel { for id in workoutIds { onCancel(id) } }
     }
 
     public func allPlans() throws -> [TrainingPlan] {

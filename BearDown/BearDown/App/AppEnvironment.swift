@@ -22,11 +22,14 @@ public final class AppEnvironment: ObservableObject {
         self.keychain = keychain ?? KeychainStore()
         self.anthropic = anthropic
         let ctx = modelContainer.mainContext
-        self.plans = PlanRepository(context: ctx)
 
         let center = SystemUserNotificationCenter()
         let scheduler = NotificationScheduler(center: center)
         self.notificationScheduler = scheduler
+
+        self.plans = PlanRepository(context: ctx, onCancel: { id in
+            Task { await scheduler.cancelByIdentifier("workout-\(id.uuidString)") }
+        })
 
         let prefsEnabled: @Sendable () -> Bool = {
             UserDefaults.standard.bool(forKey: "notifications.enabled")

@@ -118,4 +118,34 @@ final class PlanRepositoryTests: XCTestCase {
         // Idempotent — no archival of self, no updatedAt churn.
         XCTAssertEqual(plan.updatedAt, originalUpdated)
     }
+
+    func test_delete_cascadesWorkoutsAndFiresCancelHookPerWorkout() throws {
+        var cancelled: [UUID] = []
+        let hook: @Sendable (UUID) -> Void = { id in cancelled.append(id) }
+        let repoWithHook = PlanRepository(context: container.mainContext, onCancel: hook)
+
+        let plan = try repoWithHook.createPlan(title: "P",
+                                               startDate: .now,
+                                               endDate: .now.addingTimeInterval(7 * 86400))
+        let workouts = WorkoutRepository(context: container.mainContext, plans: repoWithHook)
+        let w1 = try workouts.upsert(.init(date: .now, title: "A", summary: "", blocks: []))
+        let w2 = try workouts.upsert(.init(date: .now.addingTimeInterval(86400),
+                                           title: "B", summary: "", blocks: []))
+
+        try repoWithHook.delete(planId: plan.id)
+
+        // Plan gone, workouts gone (cascade), hook fired once per workout id.
+        XCTAssertNil(try repoWithHook.plan(id: plan.id))
+        let remaining = try container.mainContext.fetch(FetchDescriptor<Workout>())
+        XCTAssertTrue(remaining.isEmpty)
+        XCTAssertEqual(Set(cancelled), Set([w1.id, w2.id]))
+    }
+
+    func test_delete_activePlan_leavesNoActivePlan() throws {
+        let active = try repo.createPlan(title: "Active",
+                                         startDate: .now,
+                                         endDate: .now.addingTimeInterval(86400))
+        try repo.delete(planId: active.id)
+        XCTAssertNil(try repo.activePlan())
+    }
 }
