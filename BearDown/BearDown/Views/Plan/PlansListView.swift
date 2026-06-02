@@ -38,7 +38,13 @@ public struct PlansListView: View {
                     }
                 }
             }
-            .onAppear { vm.refresh() }
+            .onAppear {
+                vm.refresh()
+                if let id = nav.pendingPlanDetail {
+                    path.append(PlansRoute.detail(planId: id))
+                    nav.pendingPlanDetail = nil
+                }
+            }
             .onChange(of: nav.pendingPlanDetail) { _, newValue in
                 if let id = newValue {
                     path.append(PlansRoute.detail(planId: id))
