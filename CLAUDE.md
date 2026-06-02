@@ -204,6 +204,7 @@ The parent `PlansListView` provides the plan via the `NavigationStack`'s typed p
 ## Architecture pointers
 
 - **Repositories are the only layer touching `ModelContext`.** Views and view models go through `PlanRepository`, `WorkoutRepository`, `ChatRepository`. Don't add `@Query` in views; query through repos.
+- **Conversations are virtual groupings of `ChatMessage`.** There is no `Conversation` SwiftData model. `ChatRepository.conversations()` fetches all `ChatMessage` rows sorted by `createdAt` and groups in-memory by `conversationId` (SwiftData `#Predicate` does not support `GROUP BY`). Empty conversations (only Anthropic protocol rows: `role == .user && text.isEmpty`) are filtered out. The list is reactive — no schema change, no migration; new conversations appear on first launch of the updated app.
 - **`CoachService` is the agent turn loop.** Streams events from `AnthropicClient`, accumulates text + tool calls, dispatches tools, persists chat messages with raw tool JSON for replay. Capped at 10 tool iterations per user turn.
 - **`CoachPrompt` is layered:** verbatim coaching persona (Appendix A of the design spec) + app-owned tool addendum + per-turn context block (today's date, active plan snapshot, 14-day history). The persona must never be paraphrased or normalized — it's the user's domain.
 - **`NotificationScheduler` is an actor.** Repository methods stay sync and fire fire-and-forget `Task { await scheduler.... }` to schedule/cancel. Brief race window between save and schedule; acceptable for v1.
@@ -241,6 +242,7 @@ All paths below are from the repo root. The `BearDown/BearDown/...` prefix refle
 | Change notification scheduling | `BearDown/BearDown/Notifications/NotificationScheduler.swift` + repository hooks in `BearDown/BearDown/Persistence/WorkoutRepository.swift` |
 | Add a tab, change navigation, or push a plan detail from elsewhere | `BearDown/BearDown/Views/Shared/RootView.swift`, `BearDown/BearDown/App/AppNavigation.swift` (`focusedDate`, `pendingPlanDetail`), `BearDown/BearDown/Views/Plan/PlansListView.swift` (`PlansRoute`) |
 | Add a new operation on plans (rename, archive without delete, etc.) | `BearDown/BearDown/Persistence/PlanRepository.swift`, expose to UI via `PlansListViewModel`/`PlanDetailViewModel` |
+| Add or change chat-history navigation | `BearDown/BearDown/Views/Coach/CoachView.swift` (HISTORY toolbar + `CoachRoute`) + `BearDown/BearDown/Views/Coach/ChatHistoryView.swift` + `BearDown/BearDown/Persistence/ChatRepository.swift` (`conversations()`, `switchConversation(to:)`, `deleteConversation(id:)`) |
 | Run UI tests reliably | Open the project in Xcode and use ⌘U; `xcodebuild test -only-testing:BearDownUITests` is flaky |
 
 ## Style preferences

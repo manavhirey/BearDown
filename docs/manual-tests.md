@@ -70,3 +70,17 @@ Run these on a real device before each TestFlight build. The XCUITest suite cove
 6. **Notifications cancelled on delete.** Before deleting a plan with scheduled workouts, open iOS Settings → Notifications → BearDown to inspect pending notifications. After delete, confirm pending notifications for the removed workouts are no longer scheduled.
 
 7. **Empty state after deleting all plans.** Delete the only remaining plan. The Plans tab shows "Build your block." with an ASK COACH CTA. Today shows the rest-day empty state. Type a Coach message asking for a new plan and confirm the auto-create path puts you back at one plan called "Current Block" (no `plan_title` set).
+
+## Chat History
+
+1. **List populates on Coach tab.** Send a few messages, tap NEW CHAT, send a few more. Tap HISTORY in the top-left of the Coach toolbar — both conversations appear, the most-recent on top. The current (empty) conversation is filtered out and does not appear.
+
+2. **Tap a row to resume.** Tap the first row. The view dismisses back to Coach showing that conversation's messages. Tap HISTORY again — the first row's timestamp is unchanged (switching a conversation does not modify `lastMessageAt`).
+
+3. **Swipe-delete a non-current chat.** Swipe a row's trailing edge to reveal Delete; tap it. A destructive alert ("Delete this chat? All messages will be removed.") appears. Confirm DELETE. The row is gone from the list; other conversations are untouched.
+
+4. **Delete the current chat.** Resume an existing conversation, return to HISTORY, swipe-delete the row that has the 2pt leading accent (the current chat). After confirming, the row is gone; the freshly-minted current conversation is filtered out and does not appear in the list. Pop back to Coach: the composer is blank (same end-state as NEW CHAT).
+
+5. **CloudKit cross-device sync.** On device B, send messages on a new conversation. On device A, open HISTORY and pull-to-refresh. The new conversation appears within ~10s.
+
+6. **HISTORY is disabled during streaming.** Send a message that triggers a long agent reply. While the stream is in progress, confirm HISTORY's label is greyed and untappable. After the stream completes, HISTORY re-enables.
