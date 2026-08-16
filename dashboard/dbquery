@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+"""Read-only SQL access to data/coachbear.db for the coach-bear agent.
+
+Usage:  ./dashboard/dbquery "SELECT ..."      (JSON lines to stdout)
+
+Wraps `db.py query` so the sandboxed agent needs only one spaceless
+Bash permission rule: Bash(./dashboard/dbquery:*).
+"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import db  # noqa: E402
+
+if len(sys.argv) < 2:
+    print(__doc__, file=sys.stderr)
+    sys.exit(2)
+sys.exit(db._cli(["query", " ".join(sys.argv[1:])]))

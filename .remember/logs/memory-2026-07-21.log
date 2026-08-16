@@ -1,0 +1,20 @@
+20:44:58 [hook] session-start: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+20:44:58 [hook] save-session: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.3 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+20:44:58 [force] bypassing cooldown + min msgs
+20:44:58 [extract] session 6b5eb7ee-87c3-4871-98a4-94179383a578
+20:44:58 [hook] run-consolidation: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.3 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+20:44:58 [rotate] archived 1 logs → logs-2026-07.tar.gz
+20:44:58 [consolidation] start
+20:44:58 [extract] 265 exchanges (15 human)
+20:44:58 [haiku] calling (branch: unknown)
+20:45:06 [hook] post-tool: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.3 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+20:45:24 [consolidation] tokens: 9+20030cache→2214out ($0.031518)
+20:45:24 [consolidation] done: 1 files consolidated
+20:45:35 [tokens] tokens: 9+20030cache→2981out ($0.063083)
+20:45:35 [write] appended: ## 20:44 | unknown
+20:45:35 [write] position → 1093
+20:45:35 [ndc] now.md → today-2026-07-21.md
+20:45:35 [ndc] running (PID 2949073)
+20:45:52 [ndc] tokens: 9+20806cache→1547out ($0.025453)
+20:45:52 [ndc] 286→267b (-6%)
+20:47:16 [hook] post-tool: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.3 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember

@@ -1,0 +1,12 @@
+02:18:54 [hook] session-start: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.9 REMEMBER_DIR=/home/manav/CoachBear/.remember
+02:18:56 [hook] session-start: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.9 REMEMBER_DIR=/home/manav/CoachBear/.remember
+20:24:47 [hook] session-start: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.9 REMEMBER_DIR=/home/manav/CoachBear/.remember
+20:24:54 [hook] session-start: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.9 REMEMBER_DIR=/home/manav/CoachBear/.remember
+20:24:54 [hook] save-session: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.9 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+20:24:54 [force] bypassing cooldown + min msgs
+20:24:54 [extract] session 2eaeba08-f940-4ac3-82a3-788470c45944
+20:24:54 [extract] 2 exchanges (1 human)
+20:24:54 [haiku] calling (branch: unknown)
+20:24:56 [haiku] call exited 1; tokens already spent are unknown — the failure carried no usage block, so this run's reported cost is lower than what it actually cost
+20:24:56 [haiku] ERROR: call-haiku error: claude exited 1: Failed to authenticate: OAuth session expired and could not be refreshed
+20:24:56 [haiku] failure 1/3 on this span — will retry next run

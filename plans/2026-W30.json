@@ -1,0 +1,19 @@
+{
+  "week": "2026-W30",
+  "done": {},
+  "chat": [
+    {
+      "role": "user",
+      "text": "What excercise can i swap for Snatch-Grip Romanian Deadlift",
+      "ts": "2026-07-21T20:47:42"
+    },
+    {
+      "role": "coach",
+      "text": "Heads up: I couldn't verify against the PDF's exact printed substitution list this session \u2014 the file is too large for my reader and shell access is blocked right now. So the swaps below are matched to what this exercise is *doing* in your plan, not read verbatim off the page. I've flagged that.\n\n**What the Snatch-Grip RDL is there to do (so any swap must match it):** a light hip-hinge for hamstrings/glutes + posterior chain, programmed deliberately easy \u2014 **2 x 8 @ ~40kg, RPE 6-7, 1-sec pause at bottom.** It is NOT meant to be a heavy grinder. Snatch (wide) grip also adds upper-back/trap work, but your chest-supported row already covers that, so the priority to preserve is the hamstring hinge.\n\nPick by what's driving the swap:\n\n- **Just don't like the wide snatch grip \u2192** **Standard-grip Barbell Romanian Deadlift.** Closest 1:1 swap. Same 2 x 8 @ 40kg, RPE 6-7, pause at bottom.\n- **Grip/forearms fail before hamstrings, or want it simpler \u2192** **Dumbbell Romanian Deadlift.** ~15-18kg per hand to start, same reps/RPE. Easy to keep light.\n- **Lower back feels it / want least spinal load \u2192** **45\u00b0 Back Extension (hyperextension).** Bodyweight for 2 x 10-12, hold a plate to your chest only if too easy. Very back-friendly, hits hams + glutes + erectors.\n- **Want pure hamstring stimulus, no axial load \u2192** **Lying or Seated Leg Curl** (you already have a Seated Leg Curl anchor). 2-3 x 10-12, RPE 8.\n- **Cable available, want glute/ham with minimal fatigue \u2192** **Cable Pull-Through.** 2 x 12 @ ~25-30kg.\n\nMy default recommendation: **Standard-grip Barbell RDL** if you just want the grip gone, or the **45\u00b0 Back Extension** if your lower back is the reason. Either keeps the low-fatigue intent intact.\n\nWant me to lock one of these into Wednesday's Pull day and reprint the day? And once shell/PDF access is back I'll confirm it matches the program's own Option 1/Option 2 \u2014 tell me if you'd rather stick strictly to those.",
+      "ts": "2026-07-21T20:47:42"
+    }
+  ],
+  "session_id": "b9d2bd1e-6c40-4105-b386-9f222aaba932",
+  "generated_at": "2026-07-27T02:11:18",
+  "cost_usd": 1.1779709999999999
+}

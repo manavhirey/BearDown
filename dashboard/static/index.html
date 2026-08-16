@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CoachBear — Weekly Training</title>
+<meta name="theme-color" content="#0a0e13">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='9' cy='9' r='5' fill='%23b89b85'/%3E%3Ccircle cx='23' cy='9' r='5' fill='%23b89b85'/%3E%3Cellipse cx='16' cy='19' rx='11' ry='10' fill='%23b89b85'/%3E%3Cellipse cx='16' cy='23' rx='5' ry='4' fill='%230a0e13'/%3E%3C/svg%3E">
+<script>/* proxies serve this app under a path prefix; relative URLs need the trailing slash */
+if (!location.pathname.endsWith("/")) history.replaceState(null, "", location.pathname + "/" + location.search + location.hash);</script>
+<link rel="preload" href="fonts/archivo-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="rail">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+      <circle cx="9" cy="9" r="5"/><circle cx="23" cy="9" r="5"/>
+      <ellipse cx="16" cy="19" rx="11" ry="10"/>
+      <ellipse class="snout" cx="16" cy="23" rx="5" ry="4"/>
+    </svg>
+    <div class="brand-name">COACH<br>BEAR</div>
+  </div>
+
+  <nav class="nav" aria-label="Views">
+    <button class="nav-btn" data-view="plan" aria-current="page">Plan</button>
+    <button class="nav-btn" data-view="coach">Coach</button>
+    <button class="nav-btn" data-view="history">History</button>
+    <button class="nav-btn" data-view="log">Log</button>
+  </nav>
+
+  <div class="rail-foot">
+    <span id="mode-badge" class="mode-badge" hidden></span>
+    <span id="job-badge" class="job-badge" hidden>
+      <span class="pulse" aria-hidden="true"></span><span id="job-badge-text"></span>
+    </span>
+  </div>
+</aside>
+
+<main class="main" id="main">
+
+  <!-- ══ Plan ══ -->
+  <section class="view" id="view-plan" hidden>
+    <header class="week-head">
+      <div>
+        <div class="eyebrow" id="plan-eyebrow">TRAINING WEEK</div>
+        <h1 class="week-title"><span class="week-num" id="week-num">W—</span><span id="week-dates"></span></h1>
+      </div>
+      <div class="week-actions" id="week-actions"></div>
+    </header>
+
+    <div class="band" id="band" role="tablist" aria-label="Days of the week"></div>
+
+    <div id="plan-body"></div>
+  </section>
+
+  <!-- ══ Coach ══ -->
+  <section class="view" id="view-coach" hidden>
+    <header class="view-head">
+      <div class="eyebrow">ASK THE COACH</div>
+      <h1 class="view-title" id="coach-title">Coach Bear</h1>
+    </header>
+    <div class="chat-log" id="chat-log" aria-live="polite"></div>
+    <form class="chat-form" id="chat-form">
+      <textarea id="chat-input" rows="2" placeholder="Swap Thursday's legs day… my knee is sore… how heavy on RDLs?"
+        aria-label="Message to Coach Bear"></textarea>
+      <button type="submit" class="btn btn-honey" id="chat-send">Send</button>
+    </form>
+  </section>
+
+  <!-- ══ History ══ -->
+  <section class="view" id="view-history" hidden>
+    <header class="view-head">
+      <div class="eyebrow">EVERY STORED WEEK</div>
+      <h1 class="view-title">History</h1>
+    </header>
+    <div id="history-body"></div>
+  </section>
+
+  <!-- ══ Log ══ -->
+  <section class="view" id="view-log" hidden>
+    <header class="view-head log-head">
+      <div>
+        <div class="eyebrow">EVERY SET, EVERY MILE</div>
+        <h1 class="view-title">Training log</h1>
+      </div>
+      <div class="log-actions">
+        <span id="strava-btn-slot"></span>
+        <button class="btn btn-honey" id="log-add-btn" type="button">+ Log workout</button>
+      </div>
+    </header>
+    <div id="log-body"></div>
+  </section>
+
+</main>
+
+<dialog id="log-modal" class="log-modal"></dialog>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>

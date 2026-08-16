@@ -1,0 +1,21 @@
+{
+  "week": "2026-W28",
+  "done": {
+    "Monday": false
+  },
+  "chat": [
+    {
+      "role": "user",
+      "text": "Quick check: what RPE should the last set of the Smith machine press hit, and can I swap Friday bike for a 30 min easy run?",
+      "ts": "2026-07-04T11:29:02"
+    },
+    {
+      "role": "coach",
+      "text": "Two quick answers:\n\n**1. Smith machine press \u2014 last set RPE:** RPE 10 (at or within ~1 rep of failure). Early sets sit at RPE ~8-9, top set goes to 10, then the 30-sec pec stretch. Keep that only while you're in a build week \u2014 on deload weeks it caps at 6-7.\n\n**2. Swapping Friday bike \u2192 30 min easy run:** Yes, that's legal and fine \u2014 Friday is a cardio slot with no lift, and an *easy* run doesn't count as a \"hard\" day or trigger the 24 h Legs-spacing rule (that only applies to quality/long runs). Two caveats for you specifically:\n\n- Keep it **genuinely easy and run/walk**, not continuous \u2014 it's the day after Legs on a near-zero running base, so legs will be fatigued. Prescription: **5 min walk warm-up \u2192 8 x (60s jog @ ~7:30/km / 90s walk) \u2192 5 min walk cool-down**, ~30 min, ~3 km.\n- This makes it **3 run sessions this week (Tue / Fri / Sun)** instead of the 2 I'd capped it at for impact safety. That's an acceptable bump for one week, but it pushes run volume to ~9.5 km \u2014 hold there and don't add more next week (stay \u2264+10%). If your shins/knees feel it, revert Friday to the bike.\n\nWant me to lock this in and reissue the full week with Friday as the easy run/walk?",
+      "ts": "2026-07-04T11:29:02"
+    }
+  ],
+  "session_id": "00de0cbd-d011-4ef2-8865-2632f674ee54",
+  "generated_at": "2026-07-04T11:19:10",
+  "cost_usd": 0.9757055000000001
+}

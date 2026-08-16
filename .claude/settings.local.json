@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rtk wc *)",
+      "Bash(./dashboard/api:*)",
+      "Bash(./dashboard/dbquery:*)"
+    ]
+  }
+}

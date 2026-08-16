@@ -1,0 +1,59 @@
+01:43:29 [hook] session-start: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+01:43:29 [hook] save-session: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.3 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+01:43:29 [force] bypassing cooldown + min msgs
+01:43:29 [extract] session 48665bde-5c0a-4600-bc54-b9d1f4f74d3c
+01:43:29 [hook] run-consolidation: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.3 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+01:43:29 [consolidation] start
+01:43:29 [extract] 14 exchanges (2 human)
+01:43:29 [haiku] calling (branch: unknown)
+01:43:50 [tokens] tokens: 9+20806cache→1528out ($0.036044)
+01:43:50 [write] appended: ## 01:43 | unknown
+01:43:50 [write] position → 53
+01:43:51 [ndc] now.md → today-2026-07-27.md
+01:43:51 [ndc] running (PID 2978279)
+01:44:07 [ndc] tokens: 9+20806cache→1469out ($0.025017)
+01:44:07 [ndc] 170→160b (-5%)
+01:44:56 [consolidation] tokens: 9+20030cache→8969out ($0.065349)
+01:44:56 [consolidation] done: 1 files consolidated
+02:06:32 [hook] session-start: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 REMEMBER_DIR=/home/manav/CoachBear/.remember
+02:06:32 [hook] save-session: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+02:06:32 [force] bypassing cooldown + min msgs
+02:06:32 [extract] session 0a7f0020-3b17-45dc-b717-241de328287e
+02:06:32 [extract] 2 exchanges (1 human)
+02:06:32 [haiku] calling (branch: unknown)
+02:06:43 [tokens] tokens: 9+20806cache→569out ($0.025775)
+02:06:43 [haiku] SKIP — position → 14
+02:07:44 [hook] post-tool: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+02:07:46 [hook] post-tool: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+02:07:47 [hook] post-tool: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+02:09:57 [hook] post-tool: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+02:09:57 [hook] post-tool: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+02:10:23 [hook] post-tool: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+02:10:33 [hook] post-tool: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+02:10:40 [hook] post-tool: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+19:36:44 [hook] session-start: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 REMEMBER_DIR=/home/manav/CoachBear/.remember
+19:36:44 [hook] save-session: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+19:36:44 [force] bypassing cooldown + min msgs
+19:36:44 [extract] session 3d27a188-ad6b-483a-b991-2a0336a0c3df
+19:36:44 [extract] 2 exchanges (1 human)
+19:36:45 [haiku] calling (branch: unknown)
+19:37:10 [tokens] tokens: 9+20030cache→1856out ($0.037152)
+19:37:10 [write] appended: ## 19:36 | unknown
+19:37:10 [write] position → 18
+19:37:10 [ndc] now.md → today-2026-07-27.md
+19:37:11 [ndc] running (PID 2984261)
+19:37:20 [ndc] tokens: 9+20806cache→717out ($0.021411)
+19:37:20 [ndc] 171→143b (-16%)
+19:37:58 [hook] post-tool: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+19:38:00 [hook] post-tool: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+19:38:10 [hook] post-tool: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+19:38:46 [hook] session-start: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 REMEMBER_DIR=/home/manav/CoachBear/.remember
+19:38:46 [hook] save-session: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+19:38:46 [force] bypassing cooldown + min msgs
+19:38:46 [extract] session b9d2bd1e-6c40-4105-b386-9f222aaba932
+19:38:46 [extract] 14 exchanges (1 human)
+19:38:47 [haiku] calling (branch: unknown)
+19:39:12 [tokens] tokens: 9+20806cache→2231out ($0.039771)
+19:39:12 [write] appended: ## 19:38 | unknown
+19:39:12 [write] position → 53
+21:48:20 [hook] session-start: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.7 REMEMBER_DIR=/home/manav/CoachBear/.remember

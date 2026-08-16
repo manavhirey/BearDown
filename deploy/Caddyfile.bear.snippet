@@ -1,0 +1,16 @@
+# Append this block to /etc/caddy/Caddyfile, then: sudo systemctl reload caddy
+# Validated against Caddy 2.6.2 (directive is `basicauth`, one word).
+# Users: `manav` (owner, full access) and `ramon` (executive agent on remote
+# VM — scoped by dashboard/server.py to non-destructive /api/* via the
+# X-Auth-User header forwarded below). Revoke ramon: delete its line, reload.
+# manav hash generated 2026-07-08; ramon hash 2026-07-13.
+
+bear.kunigami.cloud {
+    basicauth {
+        manav $2a$14$H1dFZaZavZef6gkWr/dsHeZgm7/KtXTG903XTy7oIDi44QiG4Q/8G
+        ramon $2a$14$iXYvxiEKQEMlkJpb.sQvEO/suOadin2UuFKzTHDHJbKBH/RhfbBU2
+    }
+    reverse_proxy localhost:8737 {
+        header_up X-Auth-User {http.auth.user.id}
+    }
+}

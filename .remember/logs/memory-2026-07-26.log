@@ -1,0 +1,19 @@
+22:20:03 [hook] session-start: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+22:20:03 [hook] run-consolidation: PROJECT_DIR=/home/manav/CoachBear PIPELINE_DIR=/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.3 PYTHON=python3 REMEMBER_DIR=/home/manav/CoachBear/.remember
+22:20:03 [consolidation] start
+22:20:06 [consolidation] ERROR: pipeline failed — Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.3/pipeline/shell.py", line 451, in <module>
+    main()
+  File "/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.3/pipeline/shell.py", line 439, in main
+    cmd_consolidate(
+  File "/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.3/pipeline/shell.py", line 341, in cmd_consolidate
+    result = consolidate(staging_contents, recent, archive,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.3/pipeline/consolidate.py", line 123, in consolidate
+    result = call_haiku(prompt, timeout=180)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/manav/.claude/plugins/cache/claude-plugins-official/remember/0.8.3/pipeline/haiku.py", line 178, in call_haiku
+    raise RuntimeError(f"claude exited {result.returncode}: {stderr}")
+RuntimeError: claude exited 1: 

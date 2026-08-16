@@ -1,0 +1,23 @@
+# Install:
+#   sudo cp deploy/coachbear-dashboard.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now coachbear-dashboard
+# Check:
+#   systemctl status coachbear-dashboard
+
+[Unit]
+Description=CoachBear lifting dashboard
+After=network.target
+
+[Service]
+Type=simple
+User=manav
+WorkingDirectory=/home/manav/CoachBear
+# claude CLI lives in ~/.local/bin, which systemd's default PATH omits
+Environment=PATH=/home/manav/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/snap/bin
+ExecStart=/usr/bin/python3 /home/manav/CoachBear/dashboard/server.py --host 127.0.0.1 --port 8737
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
